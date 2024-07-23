@@ -37,6 +37,9 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     if (args[0]?.includes('Invariant: attempted to hard navigate to the same URL')) {
       return;
     }
+    if (args[0]?.match("Unable to read file (.*?) \\(\\[object Error\\]\\)")) {
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const err = originalError(...args);
