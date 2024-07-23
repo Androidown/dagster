@@ -18,8 +18,8 @@ const createUserConfig = (): UserConfig => {
       options: {
         $type: 'WebSocket',
         host: 'localhost',
-        port: 8989,
-        // path: "pyright",
+        port: 30001,
+        path: "pyright",
         extraParams: {
           authorization: 'UserAuth',
         },
