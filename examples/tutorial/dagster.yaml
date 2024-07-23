@@ -1,0 +1,20 @@
+storage:
+  postgres:
+    postgres_db:
+      username: postgres
+      password: ""
+      hostname: "192.168.190.128"
+      db_name: dagster
+      port: 5432
+
+telemetry:
+  enabled:
+    false
+
+scheduler:
+  module: dagster.core.scheduler
+  class: DagsterDaemonScheduler
+
+#run_coordinator:
+#  module: dagster.core.run_coordinator
+#  class: QueuedRunCoordinator
