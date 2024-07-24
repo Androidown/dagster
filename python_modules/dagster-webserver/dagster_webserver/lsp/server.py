@@ -106,7 +106,6 @@ class JediLanguageServerProtocol(LanguageServerProtocol):
             server.show_message_log(msg, msg_type=MessageType.Error)
             server.initialization_options = InitializationOptions()
 
-        server.initialization_options.jedi_settings.auto_import_modules = ['pandas']
         initialization_options = server.initialization_options
         jedi_utils.set_jedi_settings(initialization_options)
 
@@ -184,7 +183,7 @@ class JediServer(LanguageServer):
         name: str,
         version: str,
         websocket: WebSocket,
-        namespaces: List[Dict] = None,
+        namespaces: List[Dict],
         loop=None,
         **kwargs,
     ):
@@ -835,10 +834,10 @@ def _choose_markup(server: JediServer) -> MarkupKind:
     )
 
 
-def get_server(websocket, namespaces):
+def get_server(websocket, namespaces = None):
     return JediServer(
         "lsp-server", "v0.1", websocket,
         loop=asyncio.get_running_loop(),
         protocol_cls=JediLanguageServerProtocol,
-        namespaces=namespaces
+        namespaces=namespaces or []
     )

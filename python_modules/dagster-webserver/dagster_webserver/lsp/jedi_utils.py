@@ -124,7 +124,7 @@ def interpreter(server, document: TextDocument) -> Interpreter:
     """Simplifies getting jedi Interpreter."""
     return Interpreter(
         code=document.source, path=document.path,
-        project=server.project, namespaces=server.namespaces or []
+        project=server.project, namespaces=server.namespaces
     )
 
 

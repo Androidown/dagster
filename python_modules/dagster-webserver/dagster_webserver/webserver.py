@@ -399,10 +399,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
 
         await websocket.accept()
 
-        server = get_server(
-            websocket,
-            [{'demo1': Demo(), 'demo2': Demo()}]
-        )
+        server = get_server(websocket)
         try:
             await server.start_serve()
         except WebSocketDisconnect:
