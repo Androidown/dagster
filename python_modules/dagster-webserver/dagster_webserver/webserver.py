@@ -2,9 +2,8 @@ import gzip
 import io
 import mimetypes
 import uuid
-from dataclasses import dataclass, field
 from os import path, walk
-from typing import Generic, List, Optional, TypeVar, Dict
+from typing import Generic, List, Optional, TypeVar
 
 import dagster._check as check
 from dagster import __version__ as dagster_version

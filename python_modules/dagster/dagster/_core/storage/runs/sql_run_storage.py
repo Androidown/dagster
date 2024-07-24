@@ -92,6 +92,7 @@ from .schema import (
     RunTagsTable,
     SecondaryIndexMigrationTable,
     SnapshotsTable,
+    FlowDefinitionsTable,
 )
 
 
@@ -952,6 +953,27 @@ class SqlRunStorage(RunStorage):
                 .where(RunTagsTable.c.key == REPOSITORY_LABEL_TAG)
                 .values(value=new_label)
             )
+
+    def add_definition(self, name: str, version: int, definition: str) -> None:
+        insert = FlowDefinitionsTable.insert().values(
+            name=name,
+            version=version,
+            definition=definition,
+        )
+        with self.connect() as conn:
+            conn.execute(insert)
+
+    def get_definition(self, name: str) -> Optional[Tuple[int, str]]:
+        tbl = FlowDefinitionsTable
+        col = tbl.c
+        query = db_select(
+            [col.version, col.definition]
+        ).select_from(tbl).where(col.name == name)
+        row = self.fetchone(query)
+        if row is None:
+            return
+
+        return row['version'], row['definition']
 
 
 GET_PIPELINE_SNAPSHOT_QUERY_ID = "get-pipeline-snapshot"

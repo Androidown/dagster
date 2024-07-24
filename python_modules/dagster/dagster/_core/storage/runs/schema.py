@@ -147,6 +147,17 @@ KeyValueStoreTable = db.Table(
     db.Column("value", db.Text),
 )
 
+FlowDefinitionsTable = db.Table(
+    "flow_definitions",
+    RunStorageSqlMetadata,
+    db.Column("name", db.Text, primary_key=True),
+    db.Column(
+        "version",
+        db.Integer().with_variant(sqlite.INTEGER(), "sqlite")
+    ),
+    db.Column("definition", db.Text)
+)
+
 db.Index("idx_run_tags", RunTagsTable.c.key, RunTagsTable.c.value, mysql_length=64)
 db.Index("idx_run_partitions", RunsTable.c.partition_set, RunsTable.c.partition, mysql_length=64)
 db.Index(

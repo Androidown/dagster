@@ -393,3 +393,16 @@ class RunStorage(ABC, MayHaveInstanceWeakref[T_DagsterInstance], DaemonCursorSto
 
     @abstractmethod
     def replace_job_origin(self, run: "DagsterRun", job_origin: "RemoteJobOrigin") -> None: ...
+
+    @abstractmethod
+    def add_definition(self, name: str, version: int, definition: str) -> None:
+        """Add new definition to flow_definitions"""
+
+    @abstractmethod
+    def get_definition(self, name: str) -> Optional[Tuple[int, str]]:
+        """Get definition from flow_definitions by name
+
+        Args:
+            name: definition name
+
+        """
