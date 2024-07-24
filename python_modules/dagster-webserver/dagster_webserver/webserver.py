@@ -50,12 +50,6 @@ mimetypes.init()
 T_IWorkspaceProcessContext = TypeVar("T_IWorkspaceProcessContext", bound=IWorkspaceProcessContext)
 
 
-@dataclass(eq=False)
-class Demo:
-    data: List[Dict] = field(default_factory=list)
-    frame: Dict = field(default_factory=dict)
-
-
 class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
     _process_context: T_IWorkspaceProcessContext
     _uses_app_path_prefix: bool
