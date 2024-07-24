@@ -2,8 +2,9 @@ import gzip
 import io
 import mimetypes
 import uuid
+from dataclasses import dataclass, field
 from os import path, walk
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar, Dict
 
 import dagster._check as check
 from dagster import __version__ as dagster_version
@@ -33,6 +34,7 @@ from starlette.responses import (
 )
 from starlette.routing import BaseRoute, Mount, Route, WebSocketRoute
 from starlette.types import Message
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from .external_assets import (
     handle_report_asset_check_request,
@@ -40,11 +42,18 @@ from .external_assets import (
     handle_report_asset_observation_request,
 )
 from .graphql import GraphQLServer
+from .lsp import get_server
 from .version import __version__
 
 mimetypes.init()
 
 T_IWorkspaceProcessContext = TypeVar("T_IWorkspaceProcessContext", bound=IWorkspaceProcessContext)
+
+
+@dataclass(eq=False)
+class Demo:
+    data: List[Dict] = field(default_factory=list)
+    frame: Dict = field(default_factory=dict)
 
 
 class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
@@ -321,6 +330,11 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                     self.graphql_ws_endpoint,
                     name="graphql-ws",
                 ),
+                WebSocketRoute(
+                    "/lsp",
+                    self.lsp_ws_endpoint,
+                    name="lsp-ws",
+                ),
             ]
             + self.build_static_routes()
             + [
@@ -376,6 +390,20 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
             ]
         else:
             return routes
+
+    async def lsp_ws_endpoint(self, websocket: WebSocket):
+        """Implementation of websocket ASGI endpoint for GraphQL.
+        Once we are free of conflicting deps, we should be able to use an impl from
+        strawberry-graphql or the like.
+        """
+
+        await websocket.accept()
+
+        server = get_server(websocket)
+        try:
+            await server.start_serve()
+        except WebSocketDisconnect:
+            server.shutdown()
 
 
 class DagsterTracedCounterMiddleware:
