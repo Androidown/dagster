@@ -33,14 +33,6 @@ class Completion:
 
 
 @light_dataclass
-class Diagnostics:
-    enable: bool = True
-    did_open: bool = True
-    did_save: bool = True
-    did_change: bool = True
-
-
-@light_dataclass
 class HoverDisableOptions:
     all: bool = False
     names: Set[str] = field(default_factory=set)
@@ -101,7 +93,6 @@ class Workspace:
 class InitializationOptions:
     code_action: CodeAction = field(default_factory=CodeAction)
     completion: Completion = field(default_factory=Completion)
-    diagnostics: Diagnostics = field(default_factory=Diagnostics)
     hover: Hover = field(default_factory=Hover)
     jedi_settings: JediSettings = field(default_factory=JediSettings)
     markup_kind_preferred: Optional[MarkupKind] = None

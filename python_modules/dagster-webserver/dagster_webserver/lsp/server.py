@@ -772,7 +772,7 @@ def _choose_markup(server: JediServer) -> MarkupKind:
     )
 
 
-def get_server(websocket, namespaces = None):
+def get_server(websocket, namespaces=None):
     return JediServer(
         "lsp-server", "v0.1", websocket,
         loop=asyncio.get_running_loop(),
