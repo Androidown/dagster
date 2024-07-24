@@ -1,9 +1,8 @@
-import { Step, BranchedStep, Definition } from 'sequential-workflow-designer';
+import { Step, BranchedStep, Definition, SequentialStep } from 'sequential-workflow-designer';
 
 export interface WorkflowDefinition extends Definition {
 	properties: {
 		name?: string;
-		alfa?: string;
 	};
 }
 
@@ -25,10 +24,18 @@ export interface SwitchStep extends BranchedStep {
 	};
 }
 
-export interface CodeStep extends Step {
-	componentType: 'code';
+export interface CodeStep extends SequentialStep {
+	componentType: 'task';
 	type: 'code';
 	properties: {
 		code: string;
+	};
+}
+
+
+export interface MapStep extends BranchedStep {
+	componentType: 'switch';
+	type: 'map';
+	properties: {
 	};
 }

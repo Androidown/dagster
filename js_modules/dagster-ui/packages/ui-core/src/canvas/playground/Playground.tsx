@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {
   Step,
   StepsConfiguration,
@@ -12,31 +12,47 @@ import {
   WrappedDefinition,
 } from 'sequential-workflow-designer-react';
 
-import { RootEditor } from './RootEditor';
-import { StepEditor } from './StepEditor';
-import { createCodeStep, createSwitchStep, createTaskStep } from './StepUtils';
-import { WorkflowDefinition } from './model';
-import PythonSVG from './python.svg';
-import { flow } from 'lodash';
-
+import {RootEditor} from './RootEditor';
+import {StepEditor} from './StepEditor';
+import {createCodeStep, createMapStep, createSwitchStep, createTaskStep} from './StepUtils';
+import {WorkflowDefinition} from './model';
+import IconPython from './python.svg';
+import IconIf from './if.svg';
+import IconMap from './map.svg';
 
 export function Playground() {
   const controller = useSequentialWorkflowDesignerController();
   const toolboxConfiguration: ToolboxConfiguration = useMemo(
     () => ({
-      groups: [{name: 'Steps', steps: [createTaskStep(), createSwitchStep(), createCodeStep()]}],
+      groups: [
+        {
+          name: 'Steps',
+          steps: [createSwitchStep(), createCodeStep(), createMapStep()],
+        },
+      ],
     }),
     [],
   );
   const stepsConfiguration: StepsConfiguration = useMemo(
     () => ({
       iconUrlProvider: (componentType: string, type: string) => {
-        if (componentType === 'task') {
-          switch (type) {
-            case 'code':
-              return PythonSVG.src;
-          }
+        switch (componentType) {
+          case 'task':
+            switch (type) {
+              case 'code':
+                return IconPython.src;
+            }
+            break;
+
+          case 'switch':
+            switch (type) {
+              case 'map':
+                return IconMap.src;
+              case 'switch':
+                return IconIf.src;
+            }
         }
+
         return '';
       },
     }),
@@ -49,12 +65,11 @@ export function Playground() {
     }),
     [],
   );
-  const [, forceUpdate] = useReducer(x => x + 1, 0);
 
-  const flowDefs = [
+  const flowDefs: WorkflowDefinition[] = [
     {properties: {name: 'step1'}, sequence: [createTaskStep()]},
     {properties: {name: 'step2'}, sequence: [createSwitchStep(), createCodeStep()]},
-  ]
+  ];
   const [flowSample, setFlowSample] = useState(flowDefs);
   const [isToolboxCollapsed, setIsToolboxCollapsed] = useState(false);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
@@ -72,22 +87,20 @@ export function Playground() {
     }
   }, [controller, moveViewportToStep]);
 
-  
   const [activeFlowIndex, setActiveFlowIndex] = useState(0);
-
 
   function setDefinition(def: WrappedDefinition<WorkflowDefinition>, internal?: boolean) {
     if (!internal) {
       const newFlows = flowSample.map((fl, i) => {
         if (i == activeFlowIndex) {
-          return def.value
+          return def.value;
         } else {
-          return fl
+          return fl;
         }
       });
       setFlowSample(newFlows);
     }
-    setDefinitionInner(def)
+    setDefinitionInner(def);
   }
 
   function setCurrentFlow(index: number) {
@@ -96,14 +109,11 @@ export function Playground() {
   }
 
   function newFlow(name: string) {
-    const newFlowDef = {
+    const newFlowDef: WorkflowDefinition = {
       properties: {name},
-      sequence: []
+      sequence: [],
     };
-    setFlowSample([
-      ...flowSample,
-      newFlowDef
-    ]);
+    setFlowSample([...flowSample, newFlowDef]);
 
     // force re-render
     setDefinitionInner(wrapDefinition(newFlowDef));
@@ -113,24 +123,24 @@ export function Playground() {
   }
 
   function deleteFlow(idx: number) {
-    setFlowSample(flowSample.filter((_, i) => i !== idx))
+    setFlowSample(flowSample.filter((_, i) => i !== idx));
     if (idx <= activeFlowIndex && activeFlowIndex > 0) {
-      setCurrentFlow(activeFlowIndex - 1)
+      setCurrentFlow(activeFlowIndex - 1);
     } else {
-      var flowDef;
+      var flowDef: WorkflowDefinition;
       if (activeFlowIndex === 0 && idx === 0 && flowSample.length > 0) {
         if (flowSample.length > 1) {
           flowDef = flowSample[1]!;
         } else {
           flowDef = {
-            properties: {name: "flow"},
-            sequence: []
-          }
+            properties: {name: 'flow'},
+            sequence: [],
+          };
         }
       } else {
         flowDef = flowSample[activeFlowIndex]!;
       }
-      setDefinitionInner(wrapDefinition(flowDef))
+      setDefinitionInner(wrapDefinition(flowDef));
     }
   }
 

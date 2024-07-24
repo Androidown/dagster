@@ -18,8 +18,8 @@ const createUserConfig = (code: string): UserConfig => {
       options: {
         $type: 'WebSocket',
         host: 'localhost',
-        port: 8000,
-        path: "lsp",
+        port: 30001,
+        path: 'pyright',
         extraParams: {
           authorization: 'UserAuth',
         },
@@ -34,7 +34,7 @@ const createUserConfig = (code: string): UserConfig => {
         $type: 'extended',
         codeResources: {
           main: {
-            text: code ?? "",
+            text: code ?? '',
             fileExt: 'py',
           },
         },
@@ -55,17 +55,12 @@ const createUserConfig = (code: string): UserConfig => {
   };
 };
 
-
 interface Props {
-  code: string,
-  onTextChange: (textChanges: TextChanges) => void
+  code: string;
+  onTextChange: (textChanges: TextChanges) => void;
 }
 
-
-export function CodeEditor({
-  code,
-  onTextChange
-}: Props) {
+export function CodeEditor({code, onTextChange}: Props) {
   return (
     <StrictMode>
       <MonacoEditorReactComp

@@ -1,84 +1,131 @@
-import {ChangeEvent} from 'react';
+import {ChangeEvent, ReactElement, useState} from 'react';
 import {useStepEditor} from 'sequential-workflow-designer-react';
+import {Heading, Box, TextInput, Button, Table} from '@dagster-io/ui-components';
 
-import {CodeStep, SwitchStep, TaskStep} from './model';
+import {CodeStep, MapStep, SwitchStep, TaskStep} from './model';
+import styled from 'styled-components';
 import {CodeEditor} from './CodeEditor';
 
-// const CodeEditor = dynamic(() => import('./CodeEditor'), {
-//   ssr: false,
-// });
+function StepEditorHeader({children}: {children: ReactElement[] | ReactElement}) {
+  return (
+    <Box padding={{horizontal: 16}}>
+      <Box padding={{top: 16, bottom: 8}}>
+        <Heading>Step Editor</Heading>
+      </Box>
+      {children}
+    </Box>
+  );
+}
 
-export function StepEditor() {
-  const {
-    type,
-    name,
-    step,
-    properties,
-    isReadonly,
-    setName,
-    setProperty,
-    notifyPropertiesChanged,
-    notifyChildrenChanged,
-  } = useStepEditor<TaskStep | SwitchStep | CodeStep>();
+const Row = styled.tr<{highlighted: boolean}>`
+  ${({highlighted}) =>
+    highlighted ? `box-shadow: inset 3px 3px #bfccd6, inset -3px -3px #bfccd6;` : null}
+`;
 
+function NamedStepEditor({
+  children,
+  name,
+  setName,
+}: {
+  children: ReactElement;
+  name: string;
+  setName: (s: string) => void;
+}) {
   function onNameChanged(e: ChangeEvent) {
     setName((e.target as HTMLInputElement).value);
   }
+  return (
+    <StepEditorHeader>
+      <Box padding={{vertical: 8}}>
+        <TextInput
+          icon="edit"
+          onChange={onNameChanged}
+          value={name}
+          placeholder="Enter step name..."
+          style={{width: '250px'}}
+        />
+      </Box>
+      {children}
+    </StepEditorHeader>
+  );
+}
 
-  function onXChanged(e: ChangeEvent) {
-    setProperty('x', (e.target as HTMLInputElement).value);
+function CodeStepEditor() {
+  const {name, properties, setName} = useStepEditor<CodeStep>();
+
+  function onTextChange(c) {
+    properties.code = c.main;
   }
+  return (
+    <NamedStepEditor name={name} setName={setName}>
+      <CodeEditor onTextChange={onTextChange} code={properties.code} />
+    </NamedStepEditor>
+  );
+}
 
-  function onYChanged(e: ChangeEvent) {
-    properties['y'] = (e.target as HTMLInputElement).value;
-    notifyPropertiesChanged();
-  }
+function MapEditor() {
+  const {step, notifyChildrenChanged} = useStepEditor<MapStep>();
+  const [branchCount, setBranchCount] = useState(3);
 
-  function toggleExtraBranch() {
-    const switchStep = step as SwitchStep;
-    if (switchStep.branches['extra']) {
-      delete switchStep.branches['extra'];
-    } else {
-      switchStep.branches['extra'] = [];
-    }
+  function newBranch() {
+    step.branches[`b${branchCount}`] = [];
+    setBranchCount(branchCount + 1);
     notifyChildrenChanged();
   }
-  let editor;
 
-  if (type === 'switch') {
-    editor = (
-      <>
-        <h4>Extra branch</h4>
-        <button onClick={toggleExtraBranch} disabled={isReadonly}>
-          Toggle branch
-        </button>
-      </>
-    );
-  } else if (type === 'code') {
-    function onTextChange(c) {
-      properties.code = c.main;
-    }
-    editor = <CodeEditor onTextChange={onTextChange} code={properties.code} />;
-  } else {
-    editor = (
-      <>
-        <h4>X Variable</h4>
-        <input type="text" value={properties.x || ''} readOnly={isReadonly} onChange={onXChanged} />
-
-        <h4>Y Variable</h4>
-        <input type="text" value={properties.y || ''} readOnly={isReadonly} onChange={onYChanged} />
-      </>
-    );
+  function deleteBranch(name: string) {
+    delete step.branches[name];
+    notifyChildrenChanged();
   }
 
   return (
-    <>
-      <h2>Step Editor {type}</h2>
+    <StepEditorHeader>
+      <Box padding={{vertical: 16}}>
+        <Button onClick={newBranch}>New</Button>
+      </Box>
+      <Box padding={{vertical: 16}}>
+        <Table>
+          <thead>
+            <tr>
+              <th style={{width: '60%'}}>Branch Name</th>
+              <th style={{width: '40%'}}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(step.branches).map((key, idx) => {
+              return (
+                <Row highlighted={false} key={idx}>
+                  <td>
+                    <b>{key}</b>
+                  </td>
+                  <td>
+                    <Box flex={{direction: 'row', gap: 4, alignItems: 'center'}}>
+                      <Button onClick={() => deleteBranch(key)}>Delete</Button>
+                    </Box>
+                  </td>
+                </Row>
+              );
+            })}
+          </tbody>
+        </Table>
+      </Box>
+    </StepEditorHeader>
+  );
+}
 
-      <h4>Name</h4>
-      <input type="text" value={name} readOnly={isReadonly} onChange={onNameChanged} />
+export function StepEditor() {
+  const {type} = useStepEditor<TaskStep | SwitchStep | CodeStep | MapStep>();
+  console.log('type:::', type);
+  switch (type) {
+    case 'code':
+      return <CodeStepEditor />;
+    case 'map':
+      return <MapEditor />;
+  }
 
-      {editor}
-    </>
+  return (
+    <StepEditorHeader>
+      <></>
+    </StepEditorHeader>
   );
 }
