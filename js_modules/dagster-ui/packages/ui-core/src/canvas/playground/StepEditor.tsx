@@ -2,12 +2,11 @@ import {ChangeEvent} from 'react';
 import {useStepEditor} from 'sequential-workflow-designer-react';
 
 import {CodeStep, SwitchStep, TaskStep} from './model';
-import dynamic from 'next/dynamic';
+import {CodeEditor} from './CodeEditor';
 
-const CodeEditor = dynamic(() => import('./CodeEditor'), {
-  ssr: false,
-});
-
+// const CodeEditor = dynamic(() => import('./CodeEditor'), {
+//   ssr: false,
+// });
 
 export function StepEditor() {
   const {
@@ -56,7 +55,10 @@ export function StepEditor() {
       </>
     );
   } else if (type === 'code') {
-    editor = <CodeEditor />;
+    function onTextChange(c) {
+      properties.code = c.main;
+    }
+    editor = <CodeEditor onTextChange={onTextChange} code={properties.code} />;
   } else {
     editor = (
       <>

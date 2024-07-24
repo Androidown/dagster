@@ -2,6 +2,7 @@ import { Step, BranchedStep, Definition } from 'sequential-workflow-designer';
 
 export interface WorkflowDefinition extends Definition {
 	properties: {
+		name?: string;
 		alfa?: string;
 	};
 }

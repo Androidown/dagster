@@ -10,7 +10,7 @@ import {StrictMode} from 'react';
 
 import '@codingame/monaco-vscode-python-default-extension';
 
-const createUserConfig = (): UserConfig => {
+const createUserConfig = (code: string): UserConfig => {
   return {
     languageClientConfig: {
       languageId: 'python',
@@ -19,7 +19,7 @@ const createUserConfig = (): UserConfig => {
         $type: 'WebSocket',
         host: 'localhost',
         port: 30001,
-        path: "pyright",
+        path: 'pyright',
         extraParams: {
           authorization: 'UserAuth',
         },
@@ -34,7 +34,7 @@ const createUserConfig = (): UserConfig => {
         $type: 'extended',
         codeResources: {
           main: {
-            text: '',
+            text: code ?? "",
             fileExt: 'py',
           },
         },
@@ -55,22 +55,26 @@ const createUserConfig = (): UserConfig => {
   };
 };
 
-export default function CodeEditor() {
-  const onTextChanged = (textChanges: TextChanges) => {
-    console.log(
-      `Dirty? ${textChanges.isDirty}\ntext: ${textChanges.main}\ntextOriginal: ${textChanges.original}`,
-    );
-  };
 
+interface Props {
+  code: string,
+  onTextChange: (textChanges: TextChanges) => void
+}
+
+
+export function CodeEditor({
+  code,
+  onTextChange
+}: Props) {
   return (
     <StrictMode>
       <MonacoEditorReactComp
-        userConfig={createUserConfig()}
+        userConfig={createUserConfig(code)}
         style={{
           paddingTop: '5px',
           height: '80vh',
         }}
-        onTextChanged={onTextChanged}
+        onTextChanged={onTextChange}
         onLoad={(wrapper: MonacoEditorLanguageClientWrapper) => {
           console.log(`Loaded ${wrapper.reportStatus().join('\n').toString()}`);
         }}
