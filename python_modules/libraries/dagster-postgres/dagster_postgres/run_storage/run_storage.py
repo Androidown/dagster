@@ -13,7 +13,11 @@ from dagster._core.storage.runs import (
     RunStorageSqlMetadata,
     SqlRunStorage,
 )
-from dagster._core.storage.runs.schema import KeyValueStoreTable, SnapshotsTable
+from dagster._core.storage.runs.schema import (
+    KeyValueStoreTable,
+    SnapshotsTable,
+    FlowDefinitionsTable
+)
 from dagster._core.storage.runs.sql_run_storage import SnapshotType
 from dagster._core.storage.sql import (
     AlembicVersion,
@@ -26,6 +30,7 @@ from dagster._daemon.types import DaemonHeartbeat
 from dagster._serdes import ConfigurableClass, ConfigurableClassData, serialize_value
 from dagster._time import datetime_from_timestamp
 from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection
 
 from ..utils import (
@@ -238,3 +243,14 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
         alembic_config = pg_alembic_config(__file__)
         with self.connect() as conn:
             return check_alembic_revision(alembic_config, conn)
+
+    def add_definition(self, name: str, version: int, definition: str) -> None:
+        tbl = FlowDefinitionsTable
+        query = insert(tbl).values(
+            name=name, version=version, definition=definition
+        ).on_conflict_do_update(
+            index_elements=['name'],
+            set_=dict(version=version, definition=definition)
+        )
+        with self.connect() as conn:
+            conn.execute(query)

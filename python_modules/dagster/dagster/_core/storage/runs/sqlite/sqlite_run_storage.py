@@ -6,6 +6,7 @@ from urllib.parse import urljoin, urlparse
 import sqlalchemy as db
 from sqlalchemy.engine import Connection
 from sqlalchemy.pool import NullPool
+from sqlalchemy.dialects.sqlite import insert
 from typing_extensions import Self
 
 from dagster import (
@@ -26,7 +27,11 @@ from dagster._core.storage.sqlite import create_db_conn_string
 from dagster._serdes import ConfigurableClass, ConfigurableClassData
 from dagster._utils import mkdir_p
 
-from ..schema import InstanceInfo, RunsTable, RunStorageSqlMetadata, RunTagsTable
+from ..schema import (
+    InstanceInfo,
+    RunsTable, RunStorageSqlMetadata, RunTagsTable,
+    FlowDefinitionsTable
+)
 from ..sql_run_storage import SqlRunStorage
 
 if TYPE_CHECKING:
@@ -159,3 +164,14 @@ class SqliteRunStorage(SqlRunStorage, ConfigurableClass):
         alembic_config = get_alembic_config(__file__)
         with self.connect() as conn:
             return check_alembic_revision(alembic_config, conn)
+
+    def add_definition(self, name: str, version: int, definition: str) -> None:
+        tbl = FlowDefinitionsTable
+        query = insert(tbl).values(
+            name=name, version=version, definition=definition
+        ).on_conflict_do_update(
+            index_elements=['name'],
+            set_=dict(version=version, definition=definition)
+        )
+        with self.connect() as conn:
+            conn.execute(query)
