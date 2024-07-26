@@ -292,6 +292,7 @@ class _PlanBuilder:
                             name=input_name,
                             dagster_type_key=input_def.dagster_type.key,
                             source=step_input_source,
+                            is_required=input_def.is_required
                         )
                     )
 

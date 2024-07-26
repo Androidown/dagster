@@ -201,6 +201,9 @@ class ActiveExecution:
     def _should_skip_step(self, step_key: str, successful_or_skipped_steps: Set[str]) -> bool:
         step = self.get_step_by_key(step_key)
         for step_input in step.step_inputs:
+            if not step_input.is_required:
+                continue
+
             missing_source_handles = []
 
             for source_handle in step_input.get_step_output_handle_dependencies():

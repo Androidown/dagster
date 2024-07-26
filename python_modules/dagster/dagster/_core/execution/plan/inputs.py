@@ -47,6 +47,7 @@ class StepInput:
     name: str
     dagster_type_key: str
     source: "StepInputSource"
+    is_required: bool = True
 
     @property
     def dependency_keys(self) -> AbstractSet[str]:

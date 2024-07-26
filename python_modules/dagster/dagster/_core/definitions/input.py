@@ -60,6 +60,14 @@ def _check_default_value(input_name: str, dagster_type: DagsterType, default_val
     return default_value  # type: ignore  # (pyright bug)
 
 
+def _check_is_required(is_required: bool, dagster_type: DagsterType) -> bool:
+    if not is_required and not dagster_type.is_nothing:
+        raise DagsterInvalidDefinitionError(
+            "optional input can only be used when input type is Nothin"
+        )
+    return is_required
+
+
 @experimental_param(param="asset_key")
 @experimental_param(param="asset_partitions")
 class InputDefinition:
@@ -98,6 +106,7 @@ class InputDefinition:
     _metadata: Mapping[str, MetadataValue]
     _asset_key: Optional[Union[AssetKey, Callable[["InputContext"], AssetKey]]]
     _asset_partitions_fn: Optional[Callable[["InputContext"], Set[str]]]
+    _is_required: bool
 
     def __init__(
         self,
@@ -109,12 +118,15 @@ class InputDefinition:
         asset_key: Optional[Union[AssetKey, Callable[["InputContext"], AssetKey]]] = None,
         asset_partitions: Optional[Union[Set[str], Callable[["InputContext"], Set[str]]]] = None,
         input_manager_key: Optional[str] = None,
+        is_required: bool = True,
         # when adding new params, make sure to update combine_with_inferred and with_dagster_type below
     ):
         self._name = check_valid_name(name, allow_list=["config"])
 
         self._type_not_set = dagster_type is None
         self._dagster_type = resolve_dagster_type(dagster_type)
+
+        self._is_required = _check_is_required(is_required, self._dagster_type)
 
         self._description = check.opt_str_param(description, "description")
 
@@ -143,6 +155,10 @@ class InputDefinition:
             self._asset_partitions_fn = lambda _: _asset_partitions
         else:
             self._asset_partitions_fn = None
+
+    @property
+    def is_required(self) -> bool:
+        return self._is_required
 
     @property
     def name(self) -> str:
@@ -265,6 +281,7 @@ class InputDefinition:
         dagster_type = self._dagster_type
         if self._type_not_set:
             dagster_type = _checked_inferred_type(inferred)
+            _check_is_required(self._is_required, dagster_type)
 
         description = self._description
         if description is None and inferred.description is not None:
@@ -283,6 +300,7 @@ class InputDefinition:
             asset_key=self._asset_key,
             asset_partitions=self._asset_partitions_fn,
             input_manager_key=self._input_manager_key,
+            is_required=self._is_required
         )
 
     def with_dagster_type(self, dagster_type: DagsterType) -> "InputDefinition":
@@ -436,6 +454,7 @@ class In(
                 PublicAttr[Optional[Union[Set[str], Callable[["InputContext"], Set[str]]]]],
             ),
             ("input_manager_key", PublicAttr[Optional[str]]),
+            ("is_required", PublicAttr[bool]),
         ],
     )
 ):
@@ -471,6 +490,7 @@ class In(
         asset_key: Optional[Union[AssetKey, Callable[["InputContext"], AssetKey]]] = None,
         asset_partitions: Optional[Union[Set[str], Callable[["InputContext"], Set[str]]]] = None,
         input_manager_key: Optional[str] = None,
+        is_required: bool = True,
     ):
         return super(In, cls).__new__(
             cls,
@@ -485,6 +505,7 @@ class In(
             asset_key=check.opt_inst_param(asset_key, "asset_key", (AssetKey, FunctionType)),
             asset_partitions=asset_partitions,
             input_manager_key=check.opt_str_param(input_manager_key, "input_manager_key"),
+            is_required=is_required,
         )
 
     @staticmethod
@@ -497,6 +518,7 @@ class In(
             asset_key=input_def._asset_key,  # noqa: SLF001
             asset_partitions=input_def._asset_partitions_fn,  # noqa: SLF001
             input_manager_key=input_def.input_manager_key,
+            is_required=input_def._is_required,
         )
 
     def to_definition(self, name: str) -> InputDefinition:
@@ -510,6 +532,7 @@ class In(
             asset_key=self.asset_key,
             asset_partitions=self.asset_partitions,
             input_manager_key=self.input_manager_key,
+            is_required=self.is_required
         )
 
 
