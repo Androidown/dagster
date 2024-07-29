@@ -62,6 +62,7 @@ from lsprotocol.types import (
     TextDocumentPositionParams,
     WorkspaceEdit,
     WorkspaceSymbolParams,
+    EXIT,
 )
 from pygls.capabilities import get_capability
 from pygls.protocol import LanguageServerProtocol, lsp_method
@@ -118,6 +119,12 @@ class JediLanguageServerProtocol(LanguageServerProtocol):
             else None
         )
         return initialize_result
+
+    @lsp_method(EXIT)
+    def lsp_exit(self, *args) -> None:
+        """Stops the server process."""
+        if self.transport is not None:
+            self.transport.close()
 
 
 class WebSocketTransportAdapter:

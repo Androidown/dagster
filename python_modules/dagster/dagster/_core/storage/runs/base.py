@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Mapping, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Mapping, Optional, Sequence, Set, Tuple, Union, \
+    List
 
 from typing_extensions import TypedDict
 
@@ -399,10 +400,30 @@ class RunStorage(ABC, MayHaveInstanceWeakref[T_DagsterInstance], DaemonCursorSto
         """Add new definition to flow_definitions"""
 
     @abstractmethod
-    def get_definition(self, name: str) -> Optional[Tuple[int, str]]:
+    def get_definition(self, name: str, version: int = 0) -> Optional[Tuple[int, str]]:
         """Get definition from flow_definitions by name
 
         Args:
             name: definition name
+            version: definition version
+
+        """
+
+    @abstractmethod
+    def all_definitions(self, version: int = 0) -> List[Dict[str, str]]:
+        """All definition from flow_definitions by version
+
+        Args:
+            version: definition version, None means all
+
+        """
+
+    @abstractmethod
+    def drop_definition(self, name: str, version: int = 0) -> None:
+        """Drop definition from flow_definitions by name & version
+
+        Args:
+            name: definition name
+            version: definition version
 
         """

@@ -23,10 +23,11 @@ interface Props {
   setCurrentFlow: (index: number) => void;
   deleteFlow: (index: number) => void;
   newFlow: (name: string) => void;
+  saveFlow: (index: number) => Promise<void>;
   activeFlow: number;
 }
 
-export function RootEditor({WorkFlows, setCurrentFlow, deleteFlow, newFlow, activeFlow}: Props) {
+export function RootEditor({WorkFlows, setCurrentFlow, deleteFlow, saveFlow,  newFlow, activeFlow}: Props) {
   const {properties, setProperty, isReadonly} = useRootEditor<WorkflowDefinition>();
   const [newFlowName, setNewFlowName] = React.useState('flow');
 
@@ -75,7 +76,7 @@ export function RootEditor({WorkFlows, setCurrentFlow, deleteFlow, newFlow, acti
                   <td>
                     <Box flex={{direction: 'row', gap: 4, alignItems: 'center'}}>
                       <ActionButton text="Open" onClick={() => setCurrentFlow(idx)} />
-                      <ActionButton text="Save" onClick={() => console.log('save flow:', flow)} />
+                      <ActionButton text="Save" onClick={() => saveFlow(idx)} />
                       <ActionButton text="Delete" onClick={() => deleteFlow(idx)} />
                     </Box>
                   </td>

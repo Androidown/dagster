@@ -47,7 +47,13 @@ from .version import __version__
 mimetypes.init()
 
 T_IWorkspaceProcessContext = TypeVar("T_IWorkspaceProcessContext", bound=IWorkspaceProcessContext)
-
+# for cors
+HEADER = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Methods': "OPTIONS, POST",
+    'Access-Control-Allow-Headers': "accept, origin, content-type"
+}
 
 class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
     _process_context: T_IWorkspaceProcessContext
@@ -318,6 +324,21 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                     name="graphql-http",
                     methods=["GET", "POST"],
                 ),
+                Route(
+                    "/save-flow",
+                    self.save_flow,
+                    methods=["POST", "OPTIONS"]
+                ),
+                Route(
+                    "/all-flows",
+                    self.all_flows,
+                    methods=["GET", "OPTIONS"]
+                ),
+                Route(
+                    "/drop-flow",
+                    self.drop_flow,
+                    methods=["POST", "OPTIONS"]
+                ),
                 WebSocketRoute(
                     "/graphql",
                     self.graphql_ws_endpoint,
@@ -327,7 +348,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                     "/lsp",
                     self.lsp_ws_endpoint,
                     name="lsp-ws",
-                ),
+                )
             ]
             + self.build_static_routes()
             + [
@@ -396,7 +417,63 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
         try:
             await server.start_serve()
         except WebSocketDisconnect:
-            server.shutdown()
+            pass
+
+    async def save_flow(self, request: Request) -> JSONResponse:
+        if request.method == 'OPTIONS':
+            return JSONResponse({}, headers=HEADER)
+
+        context = self.make_request_context(request)
+        body_content_type = request.headers.get("content-type")
+        if body_content_type == "application/json":
+            body = await request.json()
+        else:
+            return JSONResponse(
+                {
+                    "error": (
+                        f"Unhandled content type {body_content_type}, "
+                        f"expect application/json"
+                    ),
+                },
+                status_code=400,
+                headers=HEADER
+            )
+        storage = context.instance.run_storage
+        storage.add_definition(**body)
+        return JSONResponse({'status': 'ok'}, headers=HEADER)
+
+    async def all_flows(self, request: Request) -> JSONResponse:
+        if request.method == 'OPTIONS':
+            return JSONResponse({}, headers=HEADER)
+
+        context = self.make_request_context(request)
+        ver = request.query_params.get("version")
+        storage = context.instance.run_storage
+        data = storage.all_definitions(int(ver))
+        return JSONResponse({'data': data}, headers=HEADER)
+
+    async def drop_flow(self, request: Request) -> JSONResponse:
+        if request.method == 'OPTIONS':
+            return JSONResponse({}, headers=HEADER)
+
+        context = self.make_request_context(request)
+        body_content_type = request.headers.get("content-type")
+        if body_content_type == "application/json":
+            body = await request.json()
+        else:
+            return JSONResponse(
+                {
+                    "error": (
+                        f"Unhandled content type {body_content_type}, "
+                        f"expect application/json"
+                    ),
+                },
+                status_code=400,
+                headers=HEADER
+            )
+        storage = context.instance.run_storage
+        storage.drop_definition(**body)
+        return JSONResponse({'status': 'ok'}, headers=HEADER)
 
 
 class DagsterTracedCounterMiddleware:

@@ -79,6 +79,36 @@ export function Playground() {
   const [moveViewportToStep, setMoveViewportToStep] = useState<string | null>(null);
 
   useEffect(() => {
+    async function refreshFlows(){
+      const allFlowsPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/all-flows?version=0`;
+      await fetch(allFlowsPath, {
+          method: 'GET',
+          headers: new Headers({"content-type": "application/json"}),
+          mode: "cors",
+          credentials: "same-origin"
+        })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.data) {
+            const json_array: { name: string; definition: string; }[] = data.data
+            const defs = Array.from(
+                json_array,
+                (x) => wrapDefinition(
+                    {properties: {name: x.name},
+                      sequence: Array.from(
+                          Array.of(...JSON.parse(x.definition)),
+                          (d) => restoreStep(d)
+                      )}
+                ).value
+            )
+            setFlowSample(defs)
+          }
+        });
+    }
+    refreshFlows().then(() => {
+      setCurrentFlow(0)
+    })
+
     if (moveViewportToStep) {
       if (controller.isReady()) {
         controller.moveViewportToStep(moveViewportToStep);
@@ -88,6 +118,54 @@ export function Playground() {
   }, [controller, moveViewportToStep]);
 
   const [activeFlowIndex, setActiveFlowIndex] = useState(0);
+
+  function restoreStep(
+      s: {
+        type: string; id: any; componentType: any; name: any;
+        properties: { code: any; }; branches: any; sequence: any;
+      }
+  ): any{
+    if (s.type == 'task') {
+      return {
+        id: s.id,
+        componentType: s.componentType,
+        type: s.type,
+        name: s.name,
+        properties: s.properties
+      };
+    }
+    if (s.type == 'switch') {
+      return {
+        id: s.id,
+        componentType: s.componentType,
+        type: s.type,
+        name: s.name,
+        properties: s.properties,
+        branches: s.branches
+      };
+    }
+    if (s.type == 'code') {
+      return {
+        id: s.id,
+        componentType: s.componentType,
+        type: s.type,
+        name: s.name,
+        properties: {
+          code: s.properties.code,
+        },
+        sequence: s.sequence
+      };
+    }
+    // map
+    return {
+      id: s.id,
+      componentType: s.componentType,
+      type: s.type,
+      name: s.name,
+      properties: s.properties,
+      branches: s.branches,
+    };
+  }
 
   function setDefinition(def: WrappedDefinition<WorkflowDefinition>, internal?: boolean) {
     if (!internal) {
@@ -122,7 +200,18 @@ export function Playground() {
     }
   }
 
-  function deleteFlow(idx: number) {
+  async function deleteFlow(idx: number) {
+    const dropFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/drop-flow`;
+    await fetch(dropFlowPath, {
+      method: 'POST',
+      headers: new Headers({"content-type": "application/json"}),
+      body: JSON.stringify({
+        name: flowSample[idx]!.properties.name,
+        version: 0
+      }),
+      mode: "cors",
+      credentials: "same-origin"
+    });
     setFlowSample(flowSample.filter((_, i) => i !== idx));
     if (idx <= activeFlowIndex && activeFlowIndex > 0) {
       setCurrentFlow(activeFlowIndex - 1);
@@ -142,6 +231,22 @@ export function Playground() {
       }
       setDefinitionInner(wrapDefinition(flowDef));
     }
+  }
+
+  async function saveFlow(index: number){
+      const saveFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/save-flow`;
+      await fetch(saveFlowPath, {
+        method: 'POST',
+        headers: new Headers({"content-type": "application/json"}),
+        body: JSON.stringify({
+          name: flowSample[index]!.properties.name,
+          version: 0,
+          definition: JSON.stringify(flowSample[index]!.sequence),
+        }),
+        mode: "cors",
+        credentials: "same-origin"
+      });
+      setCurrentFlow(index);
   }
 
   return (
@@ -164,6 +269,7 @@ export function Playground() {
             activeFlow={activeFlowIndex}
             newFlow={newFlow}
             deleteFlow={deleteFlow}
+            saveFlow={saveFlow}
             WorkFlows={flowSample}
             setCurrentFlow={setCurrentFlow}
           />

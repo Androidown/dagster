@@ -19,6 +19,7 @@ from typing import (
     Tuple,
     Union,
     cast,
+    List,
 )
 
 import sqlalchemy as db
@@ -955,25 +956,52 @@ class SqlRunStorage(RunStorage):
             )
 
     def add_definition(self, name: str, version: int, definition: str) -> None:
-        insert = FlowDefinitionsTable.insert().values(
-            name=name,
-            version=version,
-            definition=definition,
-        )
+        tbl = FlowDefinitionsTable
+        col = tbl.c
+        insert = tbl.insert().values(name=name, version=version, definition=definition)
         with self.connect() as conn:
-            conn.execute(insert)
+            try:
+                conn.execute(insert)
+            except db_exc.IntegrityError:
+                # on_conflict_do_update equivalent
+                tbl.update().where(col.name == name).values(
+                    version=version, definition=definition
+                )
 
-    def get_definition(self, name: str) -> Optional[Tuple[int, str]]:
+    def get_definition(self, name: str, version: int = 0) -> Optional[Tuple[int, str]]:
         tbl = FlowDefinitionsTable
         col = tbl.c
         query = db_select(
             [col.version, col.definition]
-        ).select_from(tbl).where(col.name == name)
+        ).select_from(tbl).where(db.and_(col.name == name, col.version == version))
         row = self.fetchone(query)
         if row is None:
             return
 
         return row['version'], row['definition']
+
+    def all_definitions(self, version: int = 0) -> List[Dict[str, str]]:
+        tbl = FlowDefinitionsTable
+        col = tbl.c
+        if version is None:
+            query = db_select(
+                [col.name, col.version, col.definition]
+            ).select_from(tbl).where(col.version == version)
+        else:
+            query = db_select([col.version, col.definition]).select_from(tbl)
+        return [{'name': row['name'], 'version': row['version'],
+                 'definition': row['definition']}
+                for row in self.fetchall(query)]
+
+    def drop_definition(self, name: str, version: int = 0) -> None:
+        tbl = FlowDefinitionsTable
+        col = tbl.c
+        if version is None:
+            delete = tbl.delete().where(db.and_(col.name == name))
+        else:
+            delete = tbl.delete().where(db.and_(col.name == name, col.version == version))
+        with self.connect() as conn:
+            conn.execute(delete)
 
 
 GET_PIPELINE_SNAPSHOT_QUERY_ID = "get-pipeline-snapshot"
