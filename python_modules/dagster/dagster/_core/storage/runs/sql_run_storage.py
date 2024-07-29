@@ -988,7 +988,7 @@ class SqlRunStorage(RunStorage):
                 [col.name, col.version, col.definition]
             ).select_from(tbl).where(col.version == version)
         else:
-            query = db_select([col.version, col.definition]).select_from(tbl)
+            query = db_select([col.name, col.version, col.definition]).select_from(tbl)
         return [{'name': row['name'], 'version': row['version'],
                  'definition': row['definition']}
                 for row in self.fetchall(query)]

@@ -23,11 +23,18 @@ interface Props {
   setCurrentFlow: (index: number) => void;
   deleteFlow: (index: number) => void;
   newFlow: (name: string) => void;
-  saveFlow: (index: number) => Promise<void>;
+  saveFlow: (index: number) => void;
   activeFlow: number;
 }
 
-export function RootEditor({WorkFlows, setCurrentFlow, deleteFlow, saveFlow,  newFlow, activeFlow}: Props) {
+export function RootEditor({
+  WorkFlows,
+  setCurrentFlow,
+  deleteFlow,
+  saveFlow,
+  newFlow,
+  activeFlow,
+}: Props) {
   const {properties, setProperty, isReadonly} = useRootEditor<WorkflowDefinition>();
   const [newFlowName, setNewFlowName] = React.useState('flow');
 

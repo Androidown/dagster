@@ -14,11 +14,16 @@ import {
 
 import {RootEditor} from './RootEditor';
 import {StepEditor} from './StepEditor';
-import {createCodeStep, createMapStep, createSwitchStep, createTaskStep} from './StepUtils';
+import {createCodeStep, createMapStep, createSwitchStep} from './StepUtils';
 import {WorkflowDefinition} from './model';
 import IconPython from './python.svg';
 import IconIf from './if.svg';
 import IconMap from './map.svg';
+
+const DummyFlow: WorkflowDefinition = {
+  properties: {name: 'DUMMY'},
+  sequence: [],
+};
 
 export function Playground() {
   const controller = useSequentialWorkflowDesignerController();
@@ -66,49 +71,15 @@ export function Playground() {
     [],
   );
 
-  const flowDefs: WorkflowDefinition[] = [
-    {properties: {name: 'step1'}, sequence: [createTaskStep()]},
-    {properties: {name: 'step2'}, sequence: [createSwitchStep(), createCodeStep()]},
-  ];
-  const [flowSample, setFlowSample] = useState(flowDefs);
+  const [flowSample, setFlowSample] = useState<WorkflowDefinition[]>([]);
   const [isToolboxCollapsed, setIsToolboxCollapsed] = useState(false);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
-  const [definition, setDefinitionInner] = useState(() => wrapDefinition(flowDefs[0]!));
+  const [definition, setDefinitionInner] = useState(() => wrapDefinition(DummyFlow));
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [isReadonly, setIsReadonly] = useState(false);
   const [moveViewportToStep, setMoveViewportToStep] = useState<string | null>(null);
 
   useEffect(() => {
-    async function refreshFlows(){
-      const allFlowsPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/all-flows?version=0`;
-      await fetch(allFlowsPath, {
-          method: 'GET',
-          headers: new Headers({"content-type": "application/json"}),
-          mode: "cors",
-          credentials: "same-origin"
-        })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.data) {
-            const json_array: { name: string; definition: string; }[] = data.data
-            const defs = Array.from(
-                json_array,
-                (x) => wrapDefinition(
-                    {properties: {name: x.name},
-                      sequence: Array.from(
-                          Array.of(...JSON.parse(x.definition)),
-                          (d) => restoreStep(d)
-                      )}
-                ).value
-            )
-            setFlowSample(defs)
-          }
-        });
-    }
-    refreshFlows().then(() => {
-      setCurrentFlow(0)
-    })
-
     if (moveViewportToStep) {
       if (controller.isReady()) {
         controller.moveViewportToStep(moveViewportToStep);
@@ -119,53 +90,34 @@ export function Playground() {
 
   const [activeFlowIndex, setActiveFlowIndex] = useState(0);
 
-  function restoreStep(
-      s: {
-        type: string; id: any; componentType: any; name: any;
-        properties: { code: any; }; branches: any; sequence: any;
-      }
-  ): any{
-    if (s.type == 'task') {
-      return {
-        id: s.id,
-        componentType: s.componentType,
-        type: s.type,
-        name: s.name,
-        properties: s.properties
-      };
-    }
-    if (s.type == 'switch') {
-      return {
-        id: s.id,
-        componentType: s.componentType,
-        type: s.type,
-        name: s.name,
-        properties: s.properties,
-        branches: s.branches
-      };
-    }
-    if (s.type == 'code') {
-      return {
-        id: s.id,
-        componentType: s.componentType,
-        type: s.type,
-        name: s.name,
-        properties: {
-          code: s.properties.code,
+  useEffect(() => {
+    async function fetchFlowDefinition() {
+      const allFlowsPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/all-flows?version=0`;
+      const resp = await fetch(allFlowsPath, {
+        method: 'GET',
+        headers: new Headers({'content-type': 'application/json'}),
+        mode: 'cors',
+        credentials: 'same-origin',
+      });
+
+      const data = await resp.json();
+      console.log('data: ', data);
+      const flowDefs: WorkflowDefinition[] = data.data.map(
+        (row: {name: string; definition: string}) => {
+          return {
+            properties: {name: row.name},
+            sequence: JSON.parse(row.definition),
+          } as WorkflowDefinition;
         },
-        sequence: s.sequence
-      };
+      );
+      setFlowSample(flowDefs);
+      if (flowDefs.length > 0) {
+        setDefinitionInner(wrapDefinition(flowDefs[0]!));
+      }
     }
-    // map
-    return {
-      id: s.id,
-      componentType: s.componentType,
-      type: s.type,
-      name: s.name,
-      properties: s.properties,
-      branches: s.branches,
-    };
-  }
+
+    fetchFlowDefinition();
+  }, []);
 
   function setDefinition(def: WrappedDefinition<WorkflowDefinition>, internal?: boolean) {
     if (!internal) {
@@ -200,53 +152,55 @@ export function Playground() {
     }
   }
 
-  async function deleteFlow(idx: number) {
+  function deleteFlow(idx: number) {
     const dropFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/drop-flow`;
-    await fetch(dropFlowPath, {
+    fetch(dropFlowPath, {
       method: 'POST',
-      headers: new Headers({"content-type": "application/json"}),
+      headers: new Headers({'content-type': 'application/json'}),
       body: JSON.stringify({
         name: flowSample[idx]!.properties.name,
-        version: 0
+        version: 0,
       }),
-      mode: "cors",
-      credentials: "same-origin"
-    });
-    setFlowSample(flowSample.filter((_, i) => i !== idx));
-    if (idx <= activeFlowIndex && activeFlowIndex > 0) {
-      setCurrentFlow(activeFlowIndex - 1);
-    } else {
-      var flowDef: WorkflowDefinition;
-      if (activeFlowIndex === 0 && idx === 0 && flowSample.length > 0) {
-        if (flowSample.length > 1) {
-          flowDef = flowSample[1]!;
-        } else {
-          flowDef = {
-            properties: {name: 'flow'},
-            sequence: [],
-          };
-        }
+      mode: 'cors',
+      credentials: 'same-origin',
+    }).then((r) => {
+      setFlowSample(flowSample.filter((_, i) => i !== idx));
+      if (idx <= activeFlowIndex && activeFlowIndex > 0) {
+        setCurrentFlow(activeFlowIndex - 1);
       } else {
-        flowDef = flowSample[activeFlowIndex]!;
+        var flowDef: WorkflowDefinition;
+        if (activeFlowIndex === 0 && idx === 0 && flowSample.length > 0) {
+          if (flowSample.length > 1) {
+            flowDef = flowSample[1]!;
+          } else {
+            flowDef = {
+              properties: {name: 'flow'},
+              sequence: [],
+            };
+          }
+        } else {
+          flowDef = flowSample[activeFlowIndex]!;
+        }
+        setDefinitionInner(wrapDefinition(flowDef));
       }
-      setDefinitionInner(wrapDefinition(flowDef));
-    }
+    });
   }
 
-  async function saveFlow(index: number){
-      const saveFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/save-flow`;
-      await fetch(saveFlowPath, {
-        method: 'POST',
-        headers: new Headers({"content-type": "application/json"}),
-        body: JSON.stringify({
-          name: flowSample[index]!.properties.name,
-          version: 0,
-          definition: JSON.stringify(flowSample[index]!.sequence),
-        }),
-        mode: "cors",
-        credentials: "same-origin"
-      });
+  function saveFlow(index: number) {
+    const saveFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/save-flow`;
+    fetch(saveFlowPath, {
+      method: 'POST',
+      headers: new Headers({'content-type': 'application/json'}),
+      body: JSON.stringify({
+        name: flowSample[index]!.properties.name,
+        version: 0,
+        definition: JSON.stringify(flowSample[index]!.sequence),
+      }),
+      mode: 'cors',
+      credentials: 'same-origin',
+    }).then(() => {
       setCurrentFlow(index);
+    });
   }
 
   return (

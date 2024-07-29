@@ -113,6 +113,19 @@ function MapEditor() {
   );
 }
 
+function SwitchEditor() {
+  const {properties} = useStepEditor<SwitchStep>();
+
+  function onTextChange(c) {
+    properties.condition = c.main;
+  }
+  return (
+    <StepEditorHeader>
+      <CodeEditor onTextChange={onTextChange} code={properties.condition} />
+    </StepEditorHeader>
+  );
+}
+
 export function StepEditor() {
   const {type} = useStepEditor<TaskStep | SwitchStep | CodeStep | MapStep>();
   console.log('type:::', type);
@@ -121,6 +134,8 @@ export function StepEditor() {
       return <CodeStepEditor />;
     case 'map':
       return <MapEditor />;
+    case 'switch':
+      return <SwitchEditor />;
   }
 
   return (

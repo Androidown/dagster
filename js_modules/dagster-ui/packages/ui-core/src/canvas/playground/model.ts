@@ -19,8 +19,7 @@ export interface SwitchStep extends BranchedStep {
 	componentType: 'switch';
 	type: 'switch';
 	properties: {
-		x?: string;
-		y?: string;
+		condition: string
 	};
 }
 
