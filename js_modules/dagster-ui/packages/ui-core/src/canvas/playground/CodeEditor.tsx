@@ -11,18 +11,26 @@ import {StrictMode} from 'react';
 import '@codingame/monaco-vscode-python-default-extension';
 
 const createUserConfig = (code: string): UserConfig => {
+  let backendUrl = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "localhost:8000";
+  if (backendUrl.toLowerCase().startsWith("http://")) {
+    backendUrl = backendUrl.slice("http://".length)
+  } else if (backendUrl.toLowerCase().startsWith("https://")) {
+    backendUrl = backendUrl.slice("https://".length)
+  }
+
+  let [host, port] = backendUrl.split(":");
+  if (host === undefined) { host = "localhost" }
+  if (port === undefined) { port = "8000" }
+
   return {
     languageClientConfig: {
       languageId: 'python',
       name: 'Python Language Server Example',
       options: {
         $type: 'WebSocket',
-        host: 'localhost',
-        port: 30001,
-        path: 'pyright',
-        extraParams: {
-          authorization: 'UserAuth',
-        },
+        host: host,
+        port: Number.parseInt(port),
+        path: 'lsp',
         secured: false,
       },
       clientOptions: {

@@ -1,6 +1,7 @@
 import gzip
 import io
 import mimetypes
+import pathlib
 import uuid
 from os import path, walk
 from typing import Generic, List, Optional, TypeVar
@@ -14,6 +15,7 @@ from dagster._core.storage.compute_log_manager import ComputeIOType
 from dagster._core.storage.local_compute_log_manager import LocalComputeLogManager
 from dagster._core.storage.runs.sql_run_storage import SqlRunStorage
 from dagster._core.workspace.context import BaseWorkspaceRequestContext, IWorkspaceProcessContext
+from dagster._canvas import convert_to_code
 from dagster._seven import json
 from dagster._utils import Counter, traced_counter
 from dagster_graphql import __version__ as dagster_graphql_version
@@ -438,6 +440,20 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                 status_code=400,
                 headers=HEADER
             )
+
+        code_folder = pathlib.Path(
+            context.code_locations[0].get_repository("__repository__")
+            .handle.repository_python_origin
+            .code_pointer.working_directory
+        )
+        package_name = code_folder.name
+        module_name = body['name']
+
+        code = convert_to_code(json.loads(body['definition']), [package_name, module_name, ])
+
+        with open(code_folder / package_name / f"{module_name}.py", "wt") as f:
+            f.write(code)
+
         storage = context.instance.run_storage
         storage.add_definition(**body)
         return JSONResponse({'status': 'ok'}, headers=HEADER)

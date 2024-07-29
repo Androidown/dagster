@@ -3,13 +3,13 @@ import functools
 import inspect
 import itertools
 import json
-from typing import Any, List, Optional, Union, Dict
+from asyncio import Future
+from typing import Any, List, Optional, Union, Dict, Set
 from typing import Callable
 
 import cattrs
 from jedi import Project
 from jedi.api.refactoring import RefactoringError
-from loguru import logger
 from lsprotocol.types import (
     COMPLETION_ITEM_RESOLVE,
     INITIALIZE,
@@ -131,17 +131,32 @@ class WebSocketTransportAdapter:
     def __init__(self, ws: WebSocket, loop):
         self._ws = ws
         self._loop = loop
+        self._pending_writes: Set[Future] = set()
 
     def close(self) -> None:
         """Stop the WebSocket server."""
-        self._loop.create_task(self._ws.close())
+        self._loop.create_task(self._warm_close())
+
+    async def _warm_close(self):
+        for writes in self._pending_writes:
+            if writes.done():
+                continue
+            try:
+                writes.cancel()
+            except asyncio.CancelledError:
+                pass
+
+        self._pending_writes.clear()
+        await self._ws.close()
 
     def write(self, data) -> None:
         """Create a task to write specified data into a WebSocket."""
         if isinstance(data, bytes):
             data = data.decode()
-        logger.info(f'read msg: {data}')
-        asyncio.ensure_future(self._ws.send_text(data), loop=self._loop)
+
+        task = self._loop.create_task(self._ws.send_text(data))
+        self._pending_writes.add(task)
+        task.add_done_callback(lambda t: self._pending_writes.discard(t))
 
 
 class JediServer(LanguageServer):
@@ -230,7 +245,6 @@ class JediServer(LanguageServer):
         self.lsp.transport = WebSocketTransportAdapter(sock, self.loop)
         while True:
             msg = await sock.receive_text()
-            logger.info(f'read msg: {msg}')
             self.lsp._procedure_handler(
                 json.loads(msg, object_hook=self.lsp._deserialize_message)
             )
