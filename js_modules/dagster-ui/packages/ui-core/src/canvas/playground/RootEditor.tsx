@@ -18,12 +18,29 @@ const ActionButton = ({text, onClick}: {text: string; onClick: () => void}) => {
   );
 };
 
+const LoadingButton = ({text, onClick}: {text: string; onClick: () => Promise<void>}) => {
+  const [loading, setLoading] = React.useState(false);
+
+  function click() {
+    setLoading(true);
+    onClick().finally(() => setLoading(false));
+  }
+
+  return (
+    <>
+      <Button onClick={click} loading={loading}>
+        {text}
+      </Button>
+    </>
+  );
+};
+
 interface Props {
   WorkFlows: WorkflowDefinition[];
   setCurrentFlow: (index: number) => void;
-  deleteFlow: (index: number) => void;
+  deleteFlow: (index: number) => Promise<void>;
   newFlow: (name: string) => void;
-  saveFlow: (index: number) => void;
+  saveFlow: (index: number) => Promise<void>;
   activeFlow: number;
 }
 
@@ -83,8 +100,8 @@ export function RootEditor({
                   <td>
                     <Box flex={{direction: 'row', gap: 4, alignItems: 'center'}}>
                       <ActionButton text="Open" onClick={() => setCurrentFlow(idx)} />
-                      <ActionButton text="Save" onClick={() => saveFlow(idx)} />
-                      <ActionButton text="Delete" onClick={() => deleteFlow(idx)} />
+                      <LoadingButton text="Save" onClick={() => saveFlow(idx)} />
+                      <LoadingButton text="Delete" onClick={() => deleteFlow(idx)} />
                     </Box>
                   </td>
                 </Row>

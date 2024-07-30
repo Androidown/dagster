@@ -473,6 +473,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
         with open(code_folder / package_name / f"{module_name}.py", "wt") as f:
             f.write(code)
 
+        context.reload_workspace()
         storage = context.instance.run_storage
         storage.add_definition(**body)
         return JSONResponse({'status': 'ok'}, headers=HEADER)

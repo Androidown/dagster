@@ -152,9 +152,9 @@ export function Playground() {
     }
   }
 
-  function deleteFlow(idx: number) {
+  async function deleteFlow(idx: number) {
     const dropFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/drop-flow`;
-    fetch(dropFlowPath, {
+    await fetch(dropFlowPath, {
       method: 'POST',
       headers: new Headers({'content-type': 'application/json'}),
       body: JSON.stringify({
@@ -163,32 +163,32 @@ export function Playground() {
       }),
       mode: 'cors',
       credentials: 'same-origin',
-    }).then((r) => {
-      setFlowDefinitions(flowDefinitions.filter((_, i) => i !== idx));
-      if (idx <= activeFlowIndex && activeFlowIndex > 0) {
-        setCurrentFlow(activeFlowIndex - 1);
-      } else {
-        var flowDef: WorkflowDefinition;
-        if (activeFlowIndex === 0 && idx === 0 && flowDefinitions.length > 0) {
-          if (flowDefinitions.length > 1) {
-            flowDef = flowDefinitions[1]!;
-          } else {
-            flowDef = {
-              properties: {name: 'flow'},
-              sequence: [],
-            };
-          }
-        } else {
-          flowDef = flowDefinitions[activeFlowIndex]!;
-        }
-        setDefinitionInner(wrapDefinition(flowDef));
-      }
     });
+
+    setFlowDefinitions(flowDefinitions.filter((_, i) => i !== idx));
+    if (idx <= activeFlowIndex && activeFlowIndex > 0) {
+      setCurrentFlow(activeFlowIndex - 1);
+    } else {
+      var flowDef: WorkflowDefinition;
+      if (activeFlowIndex === 0 && idx === 0 && flowDefinitions.length > 0) {
+        if (flowDefinitions.length > 1) {
+          flowDef = flowDefinitions[1]!;
+        } else {
+          flowDef = {
+            properties: {name: 'flow'},
+            sequence: [],
+          };
+        }
+      } else {
+        flowDef = flowDefinitions[activeFlowIndex]!;
+      }
+      setDefinitionInner(wrapDefinition(flowDef));
+    }
   }
 
-  function saveFlow(index: number) {
+  async function saveFlow(index: number) {
     const saveFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/save-flow`;
-    fetch(saveFlowPath, {
+    await fetch(saveFlowPath, {
       method: 'POST',
       headers: new Headers({'content-type': 'application/json'}),
       body: JSON.stringify({
@@ -198,9 +198,8 @@ export function Playground() {
       }),
       mode: 'cors',
       credentials: 'same-origin',
-    }).then(() => {
-      setCurrentFlow(index);
     });
+    setCurrentFlow(index);
   }
 
   return (
