@@ -71,7 +71,7 @@ export function Playground() {
     [],
   );
 
-  const [flowSample, setFlowSample] = useState<WorkflowDefinition[]>([]);
+  const [flowDefinitions, setFlowDefinitions] = useState<WorkflowDefinition[]>([]);
   const [isToolboxCollapsed, setIsToolboxCollapsed] = useState(false);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
   const [definition, setDefinitionInner] = useState(() => wrapDefinition(DummyFlow));
@@ -110,7 +110,7 @@ export function Playground() {
           } as WorkflowDefinition;
         },
       );
-      setFlowSample(flowDefs);
+      setFlowDefinitions(flowDefs);
       if (flowDefs.length > 0) {
         setDefinitionInner(wrapDefinition(flowDefs[0]!));
       }
@@ -121,21 +121,21 @@ export function Playground() {
 
   function setDefinition(def: WrappedDefinition<WorkflowDefinition>, internal?: boolean) {
     if (!internal) {
-      const newFlows = flowSample.map((fl, i) => {
+      const newFlows = flowDefinitions.map((fl, i) => {
         if (i == activeFlowIndex) {
           return def.value;
         } else {
           return fl;
         }
       });
-      setFlowSample(newFlows);
+      setFlowDefinitions(newFlows);
     }
     setDefinitionInner(def);
   }
 
   function setCurrentFlow(index: number) {
     setActiveFlowIndex(index);
-    setDefinition(wrapDefinition(flowSample[index]!), true);
+    setDefinition(wrapDefinition(flowDefinitions[index]!), true);
   }
 
   function newFlow(name: string) {
@@ -143,12 +143,12 @@ export function Playground() {
       properties: {name},
       sequence: [],
     };
-    setFlowSample([...flowSample, newFlowDef]);
+    setFlowDefinitions([...flowDefinitions, newFlowDef]);
 
     // force re-render
     setDefinitionInner(wrapDefinition(newFlowDef));
-    if (flowSample.length > 0) {
-      setDefinitionInner(wrapDefinition(flowSample[activeFlowIndex]!));
+    if (flowDefinitions.length > 0) {
+      setDefinitionInner(wrapDefinition(flowDefinitions[activeFlowIndex]!));
     }
   }
 
@@ -158,20 +158,20 @@ export function Playground() {
       method: 'POST',
       headers: new Headers({'content-type': 'application/json'}),
       body: JSON.stringify({
-        name: flowSample[idx]!.properties.name,
+        name: flowDefinitions[idx]!.properties.name,
         version: 0,
       }),
       mode: 'cors',
       credentials: 'same-origin',
     }).then((r) => {
-      setFlowSample(flowSample.filter((_, i) => i !== idx));
+      setFlowDefinitions(flowDefinitions.filter((_, i) => i !== idx));
       if (idx <= activeFlowIndex && activeFlowIndex > 0) {
         setCurrentFlow(activeFlowIndex - 1);
       } else {
         var flowDef: WorkflowDefinition;
-        if (activeFlowIndex === 0 && idx === 0 && flowSample.length > 0) {
-          if (flowSample.length > 1) {
-            flowDef = flowSample[1]!;
+        if (activeFlowIndex === 0 && idx === 0 && flowDefinitions.length > 0) {
+          if (flowDefinitions.length > 1) {
+            flowDef = flowDefinitions[1]!;
           } else {
             flowDef = {
               properties: {name: 'flow'},
@@ -179,7 +179,7 @@ export function Playground() {
             };
           }
         } else {
-          flowDef = flowSample[activeFlowIndex]!;
+          flowDef = flowDefinitions[activeFlowIndex]!;
         }
         setDefinitionInner(wrapDefinition(flowDef));
       }
@@ -192,9 +192,9 @@ export function Playground() {
       method: 'POST',
       headers: new Headers({'content-type': 'application/json'}),
       body: JSON.stringify({
-        name: flowSample[index]!.properties.name,
+        name: flowDefinitions[index]!.properties.name,
         version: 0,
-        definition: JSON.stringify(flowSample[index]!.sequence),
+        definition: JSON.stringify(flowDefinitions[index]!.sequence),
       }),
       mode: 'cors',
       credentials: 'same-origin',
@@ -224,11 +224,11 @@ export function Playground() {
             newFlow={newFlow}
             deleteFlow={deleteFlow}
             saveFlow={saveFlow}
-            WorkFlows={flowSample}
+            WorkFlows={flowDefinitions}
             setCurrentFlow={setCurrentFlow}
           />
         }
-        stepEditor={<StepEditor />}
+        stepEditor={<StepEditor flowName={definition.value.properties.name} />}
         isEditorCollapsed={isEditorCollapsed}
         onIsEditorCollapsedChanged={setIsEditorCollapsed}
         controller={controller}

@@ -50,7 +50,7 @@ function NamedStepEditor({
   );
 }
 
-function CodeStepEditor() {
+function CodeStepEditor({flowName}: {flowName: string}) {
   const {name, properties, setName} = useStepEditor<CodeStep>();
 
   function onTextChange(c) {
@@ -58,7 +58,7 @@ function CodeStepEditor() {
   }
   return (
     <NamedStepEditor name={name} setName={setName}>
-      <CodeEditor onTextChange={onTextChange} code={properties.code} />
+      <CodeEditor onTextChange={onTextChange} code={properties.code} flowName={flowName} />
     </NamedStepEditor>
   );
 }
@@ -113,7 +113,7 @@ function MapEditor() {
   );
 }
 
-function SwitchEditor() {
+function SwitchEditor({flowName}: {flowName: string}) {
   const {properties} = useStepEditor<SwitchStep>();
 
   function onTextChange(c) {
@@ -121,21 +121,21 @@ function SwitchEditor() {
   }
   return (
     <StepEditorHeader>
-      <CodeEditor onTextChange={onTextChange} code={properties.condition} />
+      <CodeEditor flowName={flowName} onTextChange={onTextChange} code={properties.condition} />
     </StepEditorHeader>
   );
 }
 
-export function StepEditor() {
+export function StepEditor({flowName}: {flowName: string}) {
   const {type} = useStepEditor<TaskStep | SwitchStep | CodeStep | MapStep>();
   console.log('type:::', type);
   switch (type) {
     case 'code':
-      return <CodeStepEditor />;
+      return <CodeStepEditor flowName={flowName} />;
     case 'map':
       return <MapEditor />;
     case 'switch':
-      return <SwitchEditor />;
+      return <SwitchEditor flowName={flowName} />;
   }
 
   return (

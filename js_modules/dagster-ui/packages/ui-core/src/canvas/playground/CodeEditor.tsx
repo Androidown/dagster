@@ -10,17 +10,21 @@ import {StrictMode} from 'react';
 
 import '@codingame/monaco-vscode-python-default-extension';
 
-const createUserConfig = (code: string): UserConfig => {
-  let backendUrl = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "localhost:8000";
-  if (backendUrl.toLowerCase().startsWith("http://")) {
-    backendUrl = backendUrl.slice("http://".length)
-  } else if (backendUrl.toLowerCase().startsWith("https://")) {
-    backendUrl = backendUrl.slice("https://".length)
+const createUserConfig = (code: string, flowName: string): UserConfig => {
+  let backendUrl = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || 'localhost:8000';
+  if (backendUrl.toLowerCase().startsWith('http://')) {
+    backendUrl = backendUrl.slice('http://'.length);
+  } else if (backendUrl.toLowerCase().startsWith('https://')) {
+    backendUrl = backendUrl.slice('https://'.length);
   }
 
-  let [host, port] = backendUrl.split(":");
-  if (host === undefined) { host = "localhost" }
-  if (port === undefined) { port = "8000" }
+  let [host, port] = backendUrl.split(':');
+  if (host === undefined) {
+    host = 'localhost';
+  }
+  if (port === undefined) {
+    port = '8000';
+  }
 
   return {
     languageClientConfig: {
@@ -30,7 +34,7 @@ const createUserConfig = (code: string): UserConfig => {
         $type: 'WebSocket',
         host: host,
         port: Number.parseInt(port),
-        path: 'lsp',
+        path: `lsp/${flowName}`,
         secured: false,
       },
       clientOptions: {
@@ -65,14 +69,15 @@ const createUserConfig = (code: string): UserConfig => {
 
 interface Props {
   code: string;
+  flowName: string;
   onTextChange: (textChanges: TextChanges) => void;
 }
 
-export function CodeEditor({code, onTextChange}: Props) {
+export function CodeEditor({code, onTextChange, flowName}: Props) {
   return (
     <StrictMode>
       <MonacoEditorReactComp
-        userConfig={createUserConfig(code)}
+        userConfig={createUserConfig(code, flowName)}
         style={{
           paddingTop: '5px',
           height: '80vh',

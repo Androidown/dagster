@@ -2,7 +2,7 @@ import { Step, BranchedStep, Definition, SequentialStep } from 'sequential-workf
 
 export interface WorkflowDefinition extends Definition {
 	properties: {
-		name?: string;
+		name: string;
 	};
 }
 

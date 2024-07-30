@@ -30,6 +30,10 @@ def convert_to_code(data: List[Dict], namespace: List[str] = None) -> str:
             'define_asset_job',
             'Nothing',
             'In',
+            'in_process_executor',
+            'OpExecutionContext',
+            'AssetKey',
+            'AssetObservation',
         ]),
         # Import(module='builtins'),
     )

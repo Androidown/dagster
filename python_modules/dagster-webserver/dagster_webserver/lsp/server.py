@@ -615,15 +615,6 @@ def rename(
     return WorkspaceEdit(document_changes=changes) if changes else None
 
 
-@JediServer.feature(
-    TEXT_DOCUMENT_CODE_ACTION,
-    CodeActionOptions(
-        code_action_kinds=[
-            CodeActionKind.RefactorInline,
-            CodeActionKind.RefactorExtract,
-        ],
-    ),
-)
 def code_action(
     server: JediServer, params: CodeActionParams
 ) -> Optional[List[CodeAction]]:
@@ -793,10 +784,14 @@ def _choose_markup(server: JediServer) -> MarkupKind:
     )
 
 
-def get_server(websocket, namespaces=None):
+def get_server(websocket, namespace=None):
+    if namespace is not None:
+        namespaces = [namespace]
+    else:
+        namespaces = []
     return JediServer(
         "lsp-server", "v0.1", websocket,
         loop=asyncio.get_running_loop(),
         protocol_cls=JediLanguageServerProtocol,
-        namespaces=namespaces or []
+        namespaces=namespaces
     )

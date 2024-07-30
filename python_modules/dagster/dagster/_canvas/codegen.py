@@ -102,6 +102,7 @@ class OpCode(FunctionCode):
         self._deps = deps or []
         self._optdeps = optdeps or []
         self._qualname = "_".join(namespace + [self.name])
+        self._namespace = namespace
 
     def add_dep(self, dep: str):
         self._deps.append(dep)
@@ -162,6 +163,34 @@ class IfElseCode(OpCode):
     def call(self) -> str:
         args = (f"{CONTEXT}.{arg}" for arg in self._args)
         return f"{CONTEXT}.{self.name}_true, {CONTEXT}.{self.name}_false = {self.name}({', '.join(args)})"
+
+
+class ObservedOpCode(OpCode):
+    @property
+    def code(self) -> str:
+        asset_key = self._namespace + [self.name]
+        body = textwrap.dedent(f"""
+        def __INNER_FUNCTION_CALL__():
+        %s
+        
+        value = __INNER_FUNCTION_CALL__()
+        context.log_event(
+            AssetObservation(
+                asset_key=AssetKey({asset_key!r}), 
+                metadata={{"value": repr(value)}}
+            )
+        )
+        return value
+        """) % textwrap.indent(self._body, " " * 4)
+
+        return "\n".join(filter(
+            None,
+            [
+                self._get_decorator(),
+                f"def {self.name}(context: OpExecutionContext, {', '.join(self._args)}):",
+                textwrap.indent(body, " " * 4)
+            ]
+        ))
 
 
 class AssetCode(FunctionCode):
@@ -315,5 +344,5 @@ class CodeBlock:
     def _gen_jobs(self) -> str:
         qualname = "_".join(self._namespace + ['entry'])
         return "\n".join([
-            f'job = define_asset_job({qualname!r}, selection=[{self._graph_fn_name}])',
+            f'job = define_asset_job({qualname!r}, selection=[{self._graph_fn_name}], executor_def=in_process_executor)',
         ])

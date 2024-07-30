@@ -2,6 +2,8 @@ import gzip
 import io
 import mimetypes
 import pathlib
+import pickle
+import typing
 import uuid
 from os import path, walk
 from typing import Generic, List, Optional, TypeVar
@@ -347,7 +349,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                     name="graphql-ws",
                 ),
                 WebSocketRoute(
-                    "/lsp",
+                    "/lsp/{flow:path}",
                     self.lsp_ws_endpoint,
                     name="lsp-ws",
                 )
@@ -413,9 +415,30 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
         strawberry-graphql or the like.
         """
 
+        context = self.make_request_context(websocket)
+        module_name = pathlib.Path(context.instance.root_directory).name
+        flow = websocket.path_params['flow']
+
+        prefix = [module_name, flow]
+        asset_keys = [
+            key for key in context.asset_graph.all_asset_keys
+            if key.has_prefix(prefix)
+        ]
+        namespace = {}
+
+        for key, material in context.instance.get_latest_materialization_events(asset_keys).items():
+            try:
+                path = material.asset_materialization.metadata['path'].path
+                with open(path, 'rb') as f:
+                    value = pickle.load(f)
+            except Exception:
+                value = typing.Any
+
+            namespace[key.path[-1]] = value
+
         await websocket.accept()
 
-        server = get_server(websocket)
+        server = get_server(websocket, namespace=namespace)
         try:
             await server.start_serve()
         except WebSocketDisconnect:
@@ -441,11 +464,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                 headers=HEADER
             )
 
-        code_folder = pathlib.Path(
-            context.code_locations[0].get_repository("__repository__")
-            .handle.repository_python_origin
-            .code_pointer.working_directory
-        )
+        code_folder = pathlib.Path(context.instance.root_directory)
         package_name = code_folder.name
         module_name = body['name']
 

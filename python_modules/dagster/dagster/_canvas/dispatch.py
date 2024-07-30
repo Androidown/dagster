@@ -88,7 +88,7 @@ def compile_CodeStep(step: CodeStep, *, ctx: ContextLevel) -> CodeObject:
     wrapped_code = wrap_in_function(code, "__INTERNAL_FUN__")
     dep = inspect_code(wrapped_code, step, ctx)
 
-    return OpCode(
+    return ObservedOpCode(
         name=step.name,
         namespace=ctx.namespace,
         body=code.rstrip(),
