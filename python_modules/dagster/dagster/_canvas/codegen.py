@@ -34,6 +34,10 @@ class CodeObject:
         self.outputs = outputs
 
     @property
+    def dependencies(self) -> Iterable[str]:
+        return []
+
+    @property
     def code(self) -> str:
         return ""
 
@@ -72,13 +76,13 @@ class FunctionCode(CodeObject):
         ))
 
     @property
-    def _dependencies(self) -> Iterable[str]:
+    def dependencies(self) -> Iterable[str]:
         return self._args
 
     def call(self) -> str:
         args = (
             f"{arg}={CONTEXT}.{arg}"
-            for arg in self._dependencies
+            for arg in self.dependencies
         )
         return f"{CONTEXT}.{self.name} = {self.name}({', '.join(args)})"
 
@@ -108,7 +112,7 @@ class OpCode(FunctionCode):
         self._deps.append(dep)
 
     @property
-    def _dependencies(self) -> Iterable[str]:
+    def dependencies(self) -> Iterable[str]:
         return itertools.chain(self._args, self._optdeps, self._deps, )
 
     @functools.cached_property
@@ -298,14 +302,27 @@ class CodeBlock:
         self._imports.extend(imps)
 
     def _gen_graph(self):
-        assets = ",\n".join(filter(
-            None,
-            (code.into_asset(self._namespace) for code in self._codes.values())
-        ))
+        asset_out_by_code = {
+            code: code.into_asset(self._namespace)
+            for code in self._codes.values()
+        }
+
+        asset_outs = ",\n".join(filter(None, asset_out_by_code.values()))
+
+        assets = [
+            code for code, out in asset_out_by_code.items()
+            if out is not None
+        ]
+        asset_names = set(code.name for code in assets)
+
         returns = ",\n".join((
-            f'"{code.name}": {CONTEXT}.{code.name}' for code in self._codes.values()
-            if code.into_asset(self._namespace)
+            f'"{asset.name}": {CONTEXT}.{asset.name}' for asset in assets
         ))
+
+        out_deps = {
+            code.name: list(filter(lambda d: d in asset_names, code.dependencies))
+            for code in assets
+        }
 
         def create_code_tree() -> CodeNode:
             code_nodes: Dict[Step: CodeNode] = {}
@@ -326,9 +343,12 @@ class CodeBlock:
 
         lines = "\n".join(n.code.call() for n in create_code_tree().descendant)
         return textwrap.dedent(f"""
-            @graph_multi_asset(outs={{
+            @graph_multi_asset(
+                outs={{
             %s
-            }})
+                }},
+                out_deps={out_deps}
+            )
             def {self._graph_fn_name}():
                 {CONTEXT} = type('{CONTEXT}_TYPE_', (), {{}})
             %s
@@ -336,7 +356,7 @@ class CodeBlock:
             %s
                 }}
         """) % (
-            textwrap.indent(assets, " " * 4),
+            textwrap.indent(asset_outs, " " * 8),
             textwrap.indent(lines, " " * 4),
             textwrap.indent(returns, " " * 8),
         )

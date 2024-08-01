@@ -904,6 +904,7 @@ def graph_multi_asset(
     resource_defs: Optional[Mapping[str, ResourceDefinition]] = None,
     check_specs: Optional[Sequence[AssetCheckSpec]] = None,
     config: Optional[Union[ConfigMapping, Mapping[str, Any]]] = None,
+    out_deps: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Callable[[Callable[..., Any]], AssetsDefinition]:
     """Create a combined definition of multiple assets that are computed using the same graph of
     ops, and the same upstream assets.
@@ -951,6 +952,15 @@ def graph_multi_asset(
             input_name: asset_key for asset_key, (input_name, _) in named_ins.items()
         }
         named_outs = build_named_outs(outs)
+        keys_by_output_name = {
+            output_name: asset_key for asset_key, (output_name, _) in named_outs.items()
+        }
+        if out_deps:
+            asset_deps = {}
+            for out, deps in out_deps.items():
+                asset_deps[out] = set(map(keys_by_output_name.__getitem__, deps))
+        else:
+            asset_deps = None
 
         check_specs_by_output_name = validate_and_assign_output_names_to_check_specs(
             check_specs, list(named_outs.keys())
@@ -1015,9 +1025,7 @@ def graph_multi_asset(
         return AssetsDefinition.from_graph(
             op_graph,
             keys_by_input_name=keys_by_input_name,
-            keys_by_output_name={
-                output_name: asset_key for asset_key, (output_name, _) in named_outs.items()
-            },
+            keys_by_output_name=keys_by_output_name,
             partitions_def=partitions_def,
             partition_mappings=partition_mappings if partition_mappings else None,
             group_name=group_name,
@@ -1031,6 +1039,7 @@ def graph_multi_asset(
             check_specs=check_specs,
             code_versions_by_output_name=code_versions_by_output_name,
             tags_by_output_name=tags_by_output_name,
+            internal_asset_deps=asset_deps
         )
 
     return inner
