@@ -219,6 +219,10 @@ class BaseWorkspaceRequestContext(IWorkspace, LoadingContext):
         self.process_context.reload_workspace()
         return self.process_context.create_request_context()
 
+    def refresh_workspace(self) -> "BaseWorkspaceRequestContext":
+        self.process_context.refresh_workspace()
+        return self.process_context.create_request_context()
+
     def has_external_job(self, selector: JobSubsetSelector) -> bool:
         check.inst_param(selector, "selector", JobSubsetSelector)
         if not self.has_code_location(selector.location_name):
@@ -510,16 +514,6 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
         if grpc_server_registry:
             self._grpc_server_registry: GrpcServerRegistry = check.inst_param(
                 grpc_server_registry, "grpc_server_registry", GrpcServerRegistry
-            )
-        else:
-            self._grpc_server_registry = self._stack.enter_context(
-                GrpcServerRegistry(
-                    instance_ref=self._instance.get_ref(),
-                    heartbeat_ttl=WEBSERVER_GRPC_SERVER_HEARTBEAT_TTL,
-                    startup_timeout=instance.code_server_process_startup_timeout,
-                    log_level=code_server_log_level,
-                    wait_for_processes_on_shutdown=instance.wait_for_local_code_server_processes_on_shutdown,
-                )
             )
 
         self._location_entry_dict: Dict[str, CodeLocationEntry] = {}

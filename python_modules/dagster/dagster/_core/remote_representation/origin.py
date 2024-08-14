@@ -190,18 +190,18 @@ class InProcessCodeLocationOrigin(
 
     @property
     def is_reload_supported(self) -> bool:
-        return False
+        return True
 
     def get_display_metadata(self) -> Mapping[str, Any]:
         return {}
 
     def create_location(self, instance: "DagsterInstance") -> "InProcessCodeLocation":
         from dagster._core.remote_representation.code_location import InProcessCodeLocation
-
-        return InProcessCodeLocation(self, instance=instance)
+        return InProcessCodeLocation.new(self, instance)
 
     def reload_location(self, instance: "DagsterInstance") -> "InProcessCodeLocation":
-        raise NotImplementedError
+        from dagster._core.remote_representation.code_location import InProcessCodeLocation
+        return InProcessCodeLocation.reload(self, instance)
 
 
 # Different storage name for backcompat

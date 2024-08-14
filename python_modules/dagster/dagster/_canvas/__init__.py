@@ -35,7 +35,6 @@ def convert_to_code(data: List[Dict], namespace: List[str] = None) -> str:
             'AssetKey',
             'AssetObservation',
         ]),
-        # Import(module='builtins'),
     )
 
     for step in data:

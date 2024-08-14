@@ -67,7 +67,6 @@ def loadable_targets_from_loaded_module(module: ModuleType) -> Sequence[Loadable
         return loadable_repos
 
     loadable_jobs = _loadable_targets_of_type(module, JobDefinition)
-    loadable_jobs = _loadable_targets_of_type(module, JobDefinition)
 
     if len(loadable_jobs) == 1:
         return loadable_jobs

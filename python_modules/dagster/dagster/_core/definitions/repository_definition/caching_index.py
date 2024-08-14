@@ -84,9 +84,6 @@ class CacheingDefinitionIndex(Generic[T_RepositoryLevelDefinition]):
         return definition_name in self.get_definition_names()
 
     def get_all_definitions(self) -> Sequence[T_RepositoryLevelDefinition]:
-        if self._all_definitions is not None:
-            return self._all_definitions
-
         self._all_definitions = list(
             sorted(
                 map(self.get_definition, self.get_definition_names()),

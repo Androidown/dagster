@@ -9,15 +9,17 @@ from os import path, walk
 from typing import Generic, List, Optional, TypeVar
 
 import dagster._check as check
-from dagster import __version__ as dagster_version
+from dagster import __version__ as dagster_version, DagsterInvalidDefinitionError
 from dagster._annotations import deprecated
 from dagster._core.debug import DebugRunPayload
+from dagster._core.remote_representation.code_location import (
+    load_repositories_from_definitions, dump_codes
+)
 from dagster._core.storage.cloud_storage_compute_log_manager import CloudStorageComputeLogManager
 from dagster._core.storage.compute_log_manager import ComputeIOType
 from dagster._core.storage.local_compute_log_manager import LocalComputeLogManager
 from dagster._core.storage.runs.sql_run_storage import SqlRunStorage
 from dagster._core.workspace.context import BaseWorkspaceRequestContext, IWorkspaceProcessContext
-from dagster._canvas import convert_to_code
 from dagster._seven import json
 from dagster._utils import Counter, traced_counter
 from dagster_graphql import __version__ as dagster_graphql_version
@@ -334,6 +336,11 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                     methods=["POST", "OPTIONS"]
                 ),
                 Route(
+                    "/publish-flow",
+                    self.publish_flow,
+                    methods=["POST", "OPTIONS"]
+                ),
+                Route(
                     "/all-flows",
                     self.all_flows,
                     methods=["GET", "OPTIONS"]
@@ -464,18 +471,45 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                 headers=HEADER
             )
 
-        code_folder = pathlib.Path(context.instance.root_directory)
-        package_name = code_folder.name
-        module_name = body['name']
-
-        code = convert_to_code(json.loads(body['definition']), [package_name, module_name, ])
-
-        with open(code_folder / package_name / f"{module_name}.py", "wt") as f:
-            f.write(code)
-
-        context.reload_workspace()
         storage = context.instance.run_storage
         storage.add_definition(**body)
+        return JSONResponse({'status': 'ok'}, headers=HEADER)
+
+    async def publish_flow(self, request: Request) -> JSONResponse:
+        if request.method == 'OPTIONS':
+            return JSONResponse({}, headers=HEADER)
+
+        context = self.make_request_context(request)
+        body_content_type = request.headers.get("content-type")
+        if body_content_type == "application/json":
+            body = await request.json()
+        else:
+            return JSONResponse(
+                {
+                    "error": (
+                        f"Unhandled content type {body_content_type}, "
+                        f"expect application/json"
+                    ),
+                },
+                status_code=400,
+                headers=HEADER
+            )
+
+        code_folder = pathlib.Path(context.instance.root_directory)
+        storage = context.instance.run_storage
+        flow_name = body['name']
+        if flow := storage.get_definition(flow_name):
+            flows = [flow]
+            try:
+                load_repositories_from_definitions(flows, context.instance)
+            except DagsterInvalidDefinitionError as e:
+                return JSONResponse(
+                    {'error': str(e)},
+                    status_code=200,
+                    headers=HEADER
+                )
+            dump_codes(flows, code_folder, code_folder.name)
+            context.refresh_workspace()
         return JSONResponse({'status': 'ok'}, headers=HEADER)
 
     async def all_flows(self, request: Request) -> JSONResponse:

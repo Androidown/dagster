@@ -47,7 +47,10 @@ from dagster._core.definitions import (
 )
 from dagster._core.definitions.asset_check_spec import AssetCheckKey
 from dagster._core.definitions.asset_graph import AssetGraph
-from dagster._core.definitions.asset_job import is_base_asset_job_name
+from dagster._core.definitions.asset_job import (
+    is_base_asset_job_name,
+    ASSET_BASE_JOB_PREFIX
+)
 from dagster._core.definitions.asset_sensor_definition import AssetSensorDefinition
 from dagster._core.definitions.asset_spec import AssetExecutionType
 from dagster._core.definitions.auto_materialize_policy import AutoMaterializePolicy
@@ -324,6 +327,9 @@ class ExternalJobData(
             ),
         )
 
+    @property
+    def main_field(self) -> str:
+        return 'name'
 
 @whitelist_for_serdes
 class EnvVarConsumerType(Enum):
@@ -376,6 +382,10 @@ class ExternalJobRef(
             ),
             parent_snapshot_id=check.opt_str_param(parent_snapshot_id, "parent_snapshot_id"),
         )
+
+    @property
+    def main_field(self) -> str:
+        return 'name'
 
 
 @whitelist_for_serdes(storage_field_names={"op_selection": "solid_selection"})
@@ -483,6 +493,10 @@ class ScheduleSnap(
             description=schedule_def.description,
             default_status=schedule_def.default_status,
         )
+
+    @property
+    def main_field(self) -> str:
+        return 'name'
 
 
 @whitelist_for_serdes
@@ -664,6 +678,10 @@ class SensorSnap(
                 else None
             ),
         )
+
+    @property
+    def main_field(self) -> str:
+        return 'name'
 
 
 @whitelist_for_serdes
@@ -960,6 +978,10 @@ class PartitionSetSnap(
             backfill_policy=job_def.backfill_policy,
         )
 
+    @property
+    def main_field(self) -> str:
+        return 'name'
+
 
 @whitelist_for_serdes
 class ExternalPartitionNamesData(
@@ -1222,6 +1244,10 @@ class ExternalResourceData(
             ),
         )
 
+    @property
+    def main_field(self) -> str:
+        return 'name'
+
 
 @whitelist_for_serdes(storage_field_names={"execution_set_identifier": "atomic_execution_unit_id"})
 class ExternalAssetCheck(
@@ -1268,6 +1294,10 @@ class ExternalAssetCheck(
     @property
     def key(self) -> AssetCheckKey:
         return AssetCheckKey(asset_key=self.asset_key, name=self.name)
+
+    @property
+    def main_field(self) -> str:
+        return 'key'
 
 
 class BackcompatTeamOwnerFieldDeserializer(FieldSerializer):
@@ -1484,6 +1514,10 @@ class ExternalAssetNode(
     @property
     def is_executable(self) -> bool:
         return self.execution_type != AssetExecutionType.UNEXECUTABLE
+
+    @property
+    def main_field(self) -> str:
+        return 'asset_key'
 
 
 ResourceJobUsageMap = Dict[str, List[ResourceJobUsageEntry]]

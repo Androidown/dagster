@@ -8,6 +8,7 @@ from dagster._core.remote_representation.origin import (
     CodeLocationOrigin,
     GrpcServerCodeLocationOrigin,
     ManagedGrpcPythonEnvCodeLocationOrigin,
+    InProcessCodeLocationOrigin,
 )
 
 from .load import (
@@ -75,7 +76,7 @@ class PythonFileTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[ManagedGrpcPythonEnvCodeLocationOrigin]:
+    def create_origins(self) -> Sequence[InProcessCodeLocationOrigin]:
         return [
             location_origin_from_python_file(
                 python_file=self.python_file,
@@ -98,7 +99,7 @@ class ModuleTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[ManagedGrpcPythonEnvCodeLocationOrigin]:
+    def create_origins(self) -> Sequence[InProcessCodeLocationOrigin]:
         return [
             location_origin_from_module_name(
                 self.module_name,
@@ -121,7 +122,7 @@ class PackageTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[ManagedGrpcPythonEnvCodeLocationOrigin]:
+    def create_origins(self) -> Sequence[InProcessCodeLocationOrigin]:
         return [
             location_origin_from_package_name(
                 self.package_name,

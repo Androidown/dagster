@@ -22,6 +22,7 @@ from dagster._daemon.types import DaemonHeartbeat
 from dagster._utils import PrintFn
 
 from ..daemon_cursor import DaemonCursorStorage
+from dagster._core.code_pointer import ModuleCodePointer
 
 if TYPE_CHECKING:
     from dagster._core.remote_representation.origin import RemoteJobOrigin
@@ -400,7 +401,7 @@ class RunStorage(ABC, MayHaveInstanceWeakref[T_DagsterInstance], DaemonCursorSto
         """Add new definition to flow_definitions"""
 
     @abstractmethod
-    def get_definition(self, name: str, version: int = 0) -> Optional[Tuple[int, str]]:
+    def get_definition(self, name: str, version: int = 0) -> Optional[Dict[str, str]]:
         """Get definition from flow_definitions by name
 
         Args:
@@ -427,3 +428,36 @@ class RunStorage(ABC, MayHaveInstanceWeakref[T_DagsterInstance], DaemonCursorSto
             version: definition version
 
         """
+
+    @abstractmethod
+    def drop_repo_by_name(self, name: str) -> None:
+        pass
+
+    @abstractmethod
+    def save_repo_definition(
+        self,
+        location_name: str,
+        name: str,
+        metadata: bytes,
+        utilized_env_vars: bytes,
+        main_key: str,
+        snap_type: str,
+        definition: bytes,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def get_repo_definition(self, name) -> List[Dict[str, str]]:
+        pass
+
+    @abstractmethod
+    def save_code_pointer(
+        self,
+        repo_name: str,
+        code_pointer: str
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def get_code_pointers(self) -> Dict[str, ModuleCodePointer]:
+        pass

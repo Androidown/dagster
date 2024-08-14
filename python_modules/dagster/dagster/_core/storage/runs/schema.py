@@ -158,6 +158,25 @@ FlowDefinitionsTable = db.Table(
     db.Column("definition", db.Text)
 )
 
+RepoDefinitionsTable = db.Table(
+    "repo_definitions",
+    RunStorageSqlMetadata,
+    db.Column("metadata", db.LargeBinary),
+    db.Column("utilized_env_vars", db.LargeBinary),
+    db.Column("location_name", db.Text, primary_key=True),
+    db.Column("name", db.Text, primary_key=True),
+    db.Column("main_key", db.Text, primary_key=True),
+    db.Column("snap_type", db.Text, primary_key=True),
+    db.Column("definition", db.LargeBinary),
+)
+
+CodePointerTable = db.Table(
+    "code_pointer",
+    RunStorageSqlMetadata,
+    db.Column("repo_name", db.Text, primary_key=True),
+    db.Column("code_pointer", db.Text),
+)
+
 db.Index("idx_run_tags", RunTagsTable.c.key, RunTagsTable.c.value, mysql_length=64)
 db.Index("idx_run_partitions", RunsTable.c.partition_set, RunsTable.c.partition, mysql_length=64)
 db.Index(

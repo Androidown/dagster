@@ -7,6 +7,7 @@ from .analyzer import DependencyCollector
 from .codegen import *
 from .context import ContextLevel, NodeRef, Branch
 from .steps import Step, CodeStep, MapStep, IfElseStep
+from .. import DagsterInvalidDefinitionError
 
 
 @functools.singledispatch
@@ -49,7 +50,9 @@ def inspect_code(
     collector.visit(ast.parse(code))
 
     if dangling_refs := collector.dangling_refs:
-        warnings.warn(f"step: {step.name} contains unknown reference: {dangling_refs}")
+        raise DagsterInvalidDefinitionError(
+            f"step: {step.name} contains unknown reference: {dangling_refs}"
+        )
 
     dep = Dependency(argument=collector.dependencies)
 
