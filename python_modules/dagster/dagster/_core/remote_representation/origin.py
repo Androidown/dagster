@@ -109,7 +109,7 @@ class CodeLocationOrigin(ABC):
         pass
 
     @abstractmethod
-    def reload_location(self, instance: "DagsterInstance") -> "CodeLocation":
+    def reload_location(self, instance: "DagsterInstance", **kwargs) -> "CodeLocation":
         pass
 
 
@@ -183,8 +183,10 @@ class InProcessCodeLocationOrigin(
                 else DEFAULT_DAGSTER_ENTRY_POINT
             ),
             container_context=check.opt_dict_param(container_context, "container_context"),
-            location_name=check.opt_str_param(
-                location_name, "location_name", default=IN_PROCESS_NAME
+            location_name=(
+                check.str_param(location_name, "location_name")
+                if location_name
+                else _assign_loadable_target_origin_name(loadable_target_origin)
             ),
         )
 
@@ -199,9 +201,9 @@ class InProcessCodeLocationOrigin(
         from dagster._core.remote_representation.code_location import InProcessCodeLocation
         return InProcessCodeLocation.new(self, instance)
 
-    def reload_location(self, instance: "DagsterInstance") -> "InProcessCodeLocation":
+    def reload_location(self, instance: "DagsterInstance", **kwargs) -> "InProcessCodeLocation":
         from dagster._core.remote_representation.code_location import InProcessCodeLocation
-        return InProcessCodeLocation.reload(self, instance)
+        return InProcessCodeLocation.reload(self, instance, **kwargs)
 
 
 # Different storage name for backcompat

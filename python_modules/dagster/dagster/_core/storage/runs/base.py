@@ -430,19 +430,20 @@ class RunStorage(ABC, MayHaveInstanceWeakref[T_DagsterInstance], DaemonCursorSto
         """
 
     @abstractmethod
-    def drop_repo_by_name(self, name: str) -> None:
+    def drop_repo_definition_by_flow(self, flow_name: str) -> None:
         pass
 
     @abstractmethod
     def save_repo_definition(
         self,
+        flow_name: str,
         location_name: str,
         name: str,
-        metadata: bytes,
-        utilized_env_vars: bytes,
+        metadata: str,
+        utilized_env_vars: str,
         main_key: str,
         snap_type: str,
-        definition: bytes,
+        definition: str,
     ) -> None:
         pass
 

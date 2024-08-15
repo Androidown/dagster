@@ -323,6 +323,12 @@ class NodeDefsSnapshot(
             ),
         )
 
+    def merge(self, other):
+        return self._replace(
+            op_def_snaps=[*self.op_def_snaps, *other.op_def_snaps],
+            graph_def_snaps=[*self.graph_def_snaps, *other.graph_def_snaps]
+        )
+
 
 def build_node_defs_snapshot(job_def: JobDefinition) -> NodeDefsSnapshot:
     check.inst_param(job_def, "job_def", JobDefinition)

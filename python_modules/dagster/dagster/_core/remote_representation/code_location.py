@@ -1,13 +1,14 @@
 import json
 import os
 import pathlib
-import pickle
 import sys
 import tempfile
 import threading
 from abc import abstractmethod
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence, Tuple, Union, cast, List
+)
 
 import dagster._check as check
 from dagster._api.get_server_id import sync_get_server_id
@@ -25,6 +26,7 @@ from dagster._api.snapshot_repository import sync_get_streaming_external_reposit
 from dagster._api.snapshot_schedule import sync_get_external_schedule_execution_data_grpc
 from dagster._canvas import convert_to_code
 from dagster._core.code_pointer import CodePointer
+from dagster._core.definitions.asset_job import ASSET_BASE_JOB_PREFIX
 from dagster._core.definitions.partition import PartitionsDefinition
 from dagster._core.definitions.reconstruct import ReconstructableJob
 from dagster._core.definitions.repository_definition import RepositoryDefinition
@@ -34,6 +36,7 @@ from dagster._core.errors import (
     DagsterInvalidSubsetError,
     DagsterInvariantViolationError,
     DagsterUserCodeProcessError,
+    DagsterInvalidDefinitionError,
 )
 from dagster._core.execution.api import create_execution_plan
 from dagster._core.execution.plan.state import KnownExecutionState
@@ -75,7 +78,7 @@ from dagster._grpc.impl import (
 )
 from dagster._grpc.server import LoadedRepositories
 from dagster._grpc.types import GetCurrentImageResult, GetCurrentRunsResult
-from dagster._serdes import deserialize_value
+from dagster._serdes import deserialize_value, serialize_value
 from dagster._utils.merger import merge_dicts
 
 if TYPE_CHECKING:
@@ -329,24 +332,25 @@ class CodeLocation(AbstractContextManager):
     def get_dagster_library_versions(self) -> Optional[Mapping[str, str]]: ...
 
 
-def load_repositories_from_definitions(
-    flows,
-    instance: DagsterInstance,
-):
-    package_name = pathlib.Path(instance.root_directory).name
-    tmpdir = tempfile.TemporaryDirectory().name
-    os.makedirs(pathlib.Path(tmpdir) / package_name, exist_ok=True)
-    dump_codes(flows, tmpdir, package_name)
-    tmp_origin = LoadableTargetOrigin(
-        working_directory=tmpdir,
-        module_name=package_name
-    )
-    loaded = LoadedRepositories(
-        tmp_origin, DEFAULT_DAGSTER_ENTRY_POINT
-    )
-    for flow in flows:
-        sys.modules.pop(f'{package_name}.{flow["name"]}', None)
-    sys.modules.pop(package_name, None)
+def clean_package(pkg):
+    for key in set(sys.modules.keys()):
+        package, *_ = key.split('.', maxsplit=1)
+
+        if package == pkg:
+            sys.modules.pop(key)
+
+
+def load_repositories_from_definitions(flows: List[Dict], package_name: str):
+    clean_package(package_name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(pathlib.Path(tmpdir) / package_name, exist_ok=True)
+        dump_codes(flows, tmpdir, package_name)
+        tmp_origin = LoadableTargetOrigin(
+            working_directory=tmpdir,
+            module_name=package_name
+        )
+        loaded = LoadedRepositories(tmp_origin, DEFAULT_DAGSTER_ENTRY_POINT)
+    clean_package(package_name)
     return loaded
 
 
@@ -391,16 +395,20 @@ if __name__ == '__main__':
             """)
 
 
-def save_repo(origin, instance, loaded_repo):
+def save_repo_data(
+    origin: InProcessCodeLocationOrigin,
+    instance: DagsterInstance,
+    loaded_repo: LoadedRepositories,
+    flow_name: str
+):
     storage = instance.run_storage
     for repo_name, repo_def in loaded_repo.definitions_by_name.items():
         repo_data = external_repository_data_from_def(repo_def)
-        storage.drop_repo_by_name(repo_data.name)
         main_keys = {
-            "name": repo_data.name,
+            "name": serialize_value(repo_data.name),
             "location_name": origin.location_name,
-            "metadata": pickle.dumps(repo_data.metadata),
-            "utilized_env_vars": pickle.dumps(repo_data.utilized_env_vars)
+            "metadata": serialize_value(repo_data.metadata),
+            "utilized_env_vars": serialize_value(repo_data.utilized_env_vars)
         }
         for snap_type in repo_data._fields:
             if snap_type in main_keys:
@@ -408,31 +416,41 @@ def save_repo(origin, instance, loaded_repo):
             if (datas := getattr(repo_data, snap_type)) is None:
                 continue
             for data in datas:
-                main_field = data.main_field
                 storage.save_repo_definition(
                     **main_keys,
-                    main_key=str(getattr(data, main_field)),
+                    flow_name=flow_name,
+                    main_key=data.get_main_key(),
                     snap_type=snap_type,
-                    definition=pickle.dumps(data)
+                    definition=serialize_value(data)
                 )
 
 
 def get_repo_data(name, instance):
     storage = instance.run_storage
     repos = {}
+    global_job_data = {}
+    main_fields = {'metadata', 'utilized_env_vars', 'name'}
     for snap_row in storage.get_repo_definition(name):
-        repo_name = snap_row['name']
+        repo_name = deserialize_value(snap_row['name'])
         repos.setdefault(repo_name, {})
         cur = repos[repo_name]
-        if 'metadata' not in cur:
-            cur['metadata'] = pickle.loads(snap_row['metadata'])
-        if 'utilized_env_vars' not in cur:
-            cur['utilized_env_vars'] = pickle.loads(snap_row['utilized_env_vars'])
-        if 'name' not in cur:
-            cur['name'] = snap_row['name']
+        for main_field in main_fields:
+            cur.setdefault(main_field, deserialize_value(snap_row[main_field]))
         attr_name = snap_row['snap_type']
-        value = pickle.loads(snap_row['definition'])
-        cur.setdefault(attr_name, []).append(value)
+        definition = deserialize_value(snap_row['definition'])
+        if (
+            snap_row['main_key'] == ASSET_BASE_JOB_PREFIX
+            and attr_name == 'external_job_datas'
+        ):
+            if repo_name not in global_job_data:
+                global_job_data[repo_name] = definition
+            else:
+                global_job_data[repo_name] = global_job_data[repo_name].merge(definition)
+        else:
+            cur.setdefault(attr_name, []).append(definition)
+    if global_job_data:
+        for repo_name, job_data in global_job_data.items():
+            repos[repo_name]['external_job_datas'].append(job_data)
 
     for repo in repos.values():
         for field in ExternalRepositoryData._fields:
@@ -457,30 +475,43 @@ class InProcessCodeLocation(CodeLocation):
         origin: InProcessCodeLocationOrigin,
         instance: DagsterInstance,
     ):
+        ins = cls.__new__(cls)
+        ins._instance = instance
+        ins._origin = origin
+        ins._repository_code_pointer_dict = {}
         origin = check.inst_param(
             origin, "origin", InProcessCodeLocationOrigin
         )
         storage = instance.run_storage
-        loaded_repo = load_repositories_from_definitions(
-            storage.all_definitions(),
-            instance
-        )
-        save_repo(origin, instance, loaded_repo)
-        ins = cls.__new__(cls)
-        ins._instance = instance
-        ins._origin = origin
-        for repo_name, code_pointer in loaded_repo.code_pointers_by_repo_name.items():
-            code_pointer = code_pointer._asdict()
-            storage.save_code_pointer(repo_name, json.dumps(code_pointer))
-        ins._repository_code_pointer_dict = loaded_repo.code_pointers_by_repo_name
+        loaded_repo = None
+        for flow in storage.all_definitions():
+            storage.drop_repo_definition_by_flow(flow['name'])
+            package_name = pathlib.Path(instance.root_directory).name
+            try:
+                loaded_repo = load_repositories_from_definitions(
+                    [flow], package_name
+                )
+                save_repo_data(origin, instance, loaded_repo, flow['name'])
+            except DagsterInvalidDefinitionError:
+                pass
+
+        if loaded_repo is not None:
+            for repo_name, code_pointer in loaded_repo.code_pointers_by_repo_name.items():
+                code_pointer = code_pointer._asdict()
+                storage.save_code_pointer(repo_name, json.dumps(code_pointer))
+            ins._repository_code_pointer_dict = loaded_repo.code_pointers_by_repo_name
+
         ins._repositories = {
             name: ExternalRepository(
                 repo_data,
                 RepositoryHandle(repository_name=name, code_location=ins),
                 instance=instance,
             )
-            for name, repo_data in get_repo_data(origin.location_name, instance).items()
+            for name, repo_data in get_repo_data(
+                origin.location_name, instance
+            ).items()
         }
+        # Mark None for reload
         ins._loaded_repositories = None
         return ins
 
@@ -489,7 +520,13 @@ class InProcessCodeLocation(CodeLocation):
         cls,
         origin: InProcessCodeLocationOrigin,
         instance: DagsterInstance,
+        flow: Dict[str, str] = None,
+        loaded_repo: LoadedRepositories = None,
     ):
+        storage = instance.run_storage
+        if flow is not None and loaded_repo is not None:
+            storage.drop_repo_definition_by_flow(flow['name'])
+            save_repo_data(origin, instance, loaded_repo, flow['name'])
         origin = check.inst_param(
             origin, "origin", InProcessCodeLocationOrigin
         )
@@ -505,6 +542,8 @@ class InProcessCodeLocation(CodeLocation):
             )
             for name, repo_data in get_repo_data(origin.location_name, instance).items()
         }
+        # Mark None for reload
+        ins._loaded_repositories = None
         return ins
 
     @property
@@ -537,6 +576,7 @@ class InProcessCodeLocation(CodeLocation):
 
     def get_reconstructable_job(self, repository_name: str, name: str) -> ReconstructableJob:
         if self._loaded_repositories is None:
+            # reload pyfiles in actual origin same as daemon
             self._loaded_repositories = LoadedRepositories(
                 self._origin.loadable_target_origin, DEFAULT_DAGSTER_ENTRY_POINT
             )
@@ -546,6 +586,7 @@ class InProcessCodeLocation(CodeLocation):
 
     def _get_repo_def(self, name: str) -> RepositoryDefinition:
         if self._loaded_repositories is None:
+            # reload pyfiles in actual origin same as daemon
             self._loaded_repositories = LoadedRepositories(
                 self._origin.loadable_target_origin, DEFAULT_DAGSTER_ENTRY_POINT
             )

@@ -161,13 +161,14 @@ FlowDefinitionsTable = db.Table(
 RepoDefinitionsTable = db.Table(
     "repo_definitions",
     RunStorageSqlMetadata,
-    db.Column("metadata", db.LargeBinary),
-    db.Column("utilized_env_vars", db.LargeBinary),
+    db.Column("metadata", db.Text),
+    db.Column("utilized_env_vars", db.Text),
     db.Column("location_name", db.Text, primary_key=True),
+    db.Column("flow_name", db.Text, primary_key=True),
     db.Column("name", db.Text, primary_key=True),
     db.Column("main_key", db.Text, primary_key=True),
     db.Column("snap_type", db.Text, primary_key=True),
-    db.Column("definition", db.LargeBinary),
+    db.Column("definition", db.Text),
 )
 
 CodePointerTable = db.Table(

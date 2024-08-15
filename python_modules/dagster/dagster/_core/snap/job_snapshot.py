@@ -145,6 +145,21 @@ class JobSnapshot(
             ),
         )
 
+    def merge(self, other):
+        tags = dict(self.tags)
+        tags.update(other.tags)
+        meta = dict(self.metadata)
+        meta.update(other.metadata)
+        return self._replace(
+            tags=tags,
+            config_schema_snapshot=self.config_schema_snapshot.merge(other.config_schema_snapshot),
+            dagster_type_namespace_snapshot=self.dagster_type_namespace_snapshot.merge(other.dagster_type_namespace_snapshot),
+            node_defs_snapshot=self.node_defs_snapshot.merge(other.node_defs_snapshot),
+            dep_structure_snapshot=self.dep_structure_snapshot.merge(other.dep_structure_snapshot),
+            lineage_snapshot=self.lineage_snapshot or other.lineage_snapshot,
+            metadata=meta,
+        )
+
     @classmethod
     def from_job_def(cls, job_def: JobDefinition) -> "JobSnapshot":
         check.inst_param(job_def, "job_def", JobDefinition)

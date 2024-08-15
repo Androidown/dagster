@@ -1009,16 +1009,18 @@ class SqlRunStorage(RunStorage):
 
     def save_repo_definition(
         self,
+        flow_name: str,
         location_name: str,
         name: str,
-        metadata: bytes,
-        utilized_env_vars: bytes,
+        metadata: str,
+        utilized_env_vars: str,
         main_key: str,
         snap_type: str,
-        definition: bytes,
+        definition: str,
     ) -> None:
         tbl = RepoDefinitionsTable
         insert = tbl.insert().values(
+            flow_name=flow_name,
             metadata=metadata,
             utilized_env_vars=utilized_env_vars,
             location_name=location_name,
@@ -1034,6 +1036,7 @@ class SqlRunStorage(RunStorage):
                 # on_conflict_do_update equivalent
                 tbl.update().where(
                     db.and_(
+                        tbl.c.flow_name == flow_name,
                         tbl.c.location_name == location_name,
                         tbl.c.name == name,
                         tbl.c.main_key == main_key,
@@ -1045,10 +1048,10 @@ class SqlRunStorage(RunStorage):
                     definition=definition,
                 )
 
-    def drop_repo_by_name(self, name: str) -> None:
+    def drop_repo_definition_by_flow(self, flow_name: str) -> None:
         tbl = RepoDefinitionsTable
         col = tbl.c
-        delete = tbl.delete().where(col.name == name)
+        delete = tbl.delete().where(col.flow_name == flow_name)
         with self.connect() as conn:
             conn.execute(delete)
 
@@ -1064,6 +1067,7 @@ class SqlRunStorage(RunStorage):
                 snap_type=data['snap_type'],
                 definition=data['definition'],
                 main_key=data['main_key'],
+                flow_name=data['flow_name'],
             )
             for data in rows
         ]

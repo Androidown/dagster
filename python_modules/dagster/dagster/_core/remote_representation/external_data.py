@@ -327,9 +327,18 @@ class ExternalJobData(
             ),
         )
 
-    @property
-    def main_field(self) -> str:
-        return 'name'
+    def get_main_key(self) -> str:
+        return self.name
+
+    def merge(self, other: 'ExternalJobData'):
+        job_snapshot = self.job_snapshot.merge(other.job_snapshot)
+        parent_job_snapshot = self.parent_job_snapshot or other.parent_job_snapshot
+        return self._replace(
+            job_snapshot=job_snapshot,
+            active_presets=[*self.active_presets, *other.active_presets],
+            parent_job_snapshot=parent_job_snapshot
+        )
+
 
 @whitelist_for_serdes
 class EnvVarConsumerType(Enum):
@@ -383,9 +392,8 @@ class ExternalJobRef(
             parent_snapshot_id=check.opt_str_param(parent_snapshot_id, "parent_snapshot_id"),
         )
 
-    @property
-    def main_field(self) -> str:
-        return 'name'
+    def get_main_key(self) -> str:
+        return self.name
 
 
 @whitelist_for_serdes(storage_field_names={"op_selection": "solid_selection"})
@@ -494,9 +502,8 @@ class ScheduleSnap(
             default_status=schedule_def.default_status,
         )
 
-    @property
-    def main_field(self) -> str:
-        return 'name'
+    def get_main_key(self) -> str:
+        return self.name
 
 
 @whitelist_for_serdes
@@ -679,9 +686,8 @@ class SensorSnap(
             ),
         )
 
-    @property
-    def main_field(self) -> str:
-        return 'name'
+    def get_main_key(self) -> str:
+        return self.name
 
 
 @whitelist_for_serdes
@@ -978,9 +984,8 @@ class PartitionSetSnap(
             backfill_policy=job_def.backfill_policy,
         )
 
-    @property
-    def main_field(self) -> str:
-        return 'name'
+    def get_main_key(self) -> str:
+        return self.name
 
 
 @whitelist_for_serdes
@@ -1244,9 +1249,8 @@ class ExternalResourceData(
             ),
         )
 
-    @property
-    def main_field(self) -> str:
-        return 'name'
+    def get_main_key(self) -> str:
+        return self.name
 
 
 @whitelist_for_serdes(storage_field_names={"execution_set_identifier": "atomic_execution_unit_id"})
@@ -1295,9 +1299,8 @@ class ExternalAssetCheck(
     def key(self) -> AssetCheckKey:
         return AssetCheckKey(asset_key=self.asset_key, name=self.name)
 
-    @property
-    def main_field(self) -> str:
-        return 'key'
+    def get_main_key(self) -> str:
+        return self.asset_key.path[2]
 
 
 class BackcompatTeamOwnerFieldDeserializer(FieldSerializer):
@@ -1515,9 +1518,8 @@ class ExternalAssetNode(
     def is_executable(self) -> bool:
         return self.execution_type != AssetExecutionType.UNEXECUTABLE
 
-    @property
-    def main_field(self) -> str:
-        return 'asset_key'
+    def get_main_key(self) -> str:
+        return self.asset_key.path[2]
 
 
 ResourceJobUsageMap = Dict[str, List[ResourceJobUsageEntry]]

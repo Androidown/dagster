@@ -57,6 +57,11 @@ class DagsterTypeNamespaceSnapshot(
         check.str_param(key, "key")
         return self.all_dagster_type_snaps_by_key[key]
 
+    def merge(self, other):
+        res = dict(self.all_dagster_type_snaps_by_key)
+        res.update(**other.all_dagster_type_snaps_by_key)
+        return self._replace(all_dagster_type_snaps_by_key=res)
+
 
 @whitelist_for_serdes(
     skip_when_empty_fields={"metadata"},

@@ -9,7 +9,7 @@ from os import path, walk
 from typing import Generic, List, Optional, TypeVar
 
 import dagster._check as check
-from dagster import __version__ as dagster_version, DagsterInvalidDefinitionError
+from dagster import __version__ as dagster_version
 from dagster._annotations import deprecated
 from dagster._core.debug import DebugRunPayload
 from dagster._core.remote_representation.code_location import (
@@ -499,17 +499,17 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
         storage = context.instance.run_storage
         flow_name = body['name']
         if flow := storage.get_definition(flow_name):
-            flows = [flow]
+            package_name = pathlib.Path(context.instance.root_directory).name
             try:
-                load_repositories_from_definitions(flows, context.instance)
-            except DagsterInvalidDefinitionError as e:
+                loaded = load_repositories_from_definitions([flow], package_name)
+            except Exception as e:
                 return JSONResponse(
                     {'error': str(e)},
                     status_code=200,
                     headers=HEADER
                 )
-            dump_codes(flows, code_folder, code_folder.name)
-            context.refresh_workspace()
+            dump_codes([flow], code_folder, code_folder.name)
+            context.reload_workspace(flow=flow, loaded_repo=loaded)
         return JSONResponse({'status': 'ok'}, headers=HEADER)
 
     async def all_flows(self, request: Request) -> JSONResponse:

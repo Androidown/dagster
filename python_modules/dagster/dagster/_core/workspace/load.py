@@ -102,8 +102,13 @@ def _get_module_config_data(
 
 
 def _create_python_env_location_origin(
-    loadable_target_origin: LoadableTargetOrigin, location_name: Optional[str]
+    loadable_target_origin: LoadableTargetOrigin,
+    location_name: Optional[str],
+    use_grpc: bool = False
 ) -> InProcessCodeLocationOrigin:
+    # To differ caller from daemon or web-server
+    if use_grpc:
+        return ManagedGrpcPythonEnvCodeLocationOrigin(loadable_target_origin, location_name)
     return InProcessCodeLocationOrigin(loadable_target_origin, location_name)
 
 
@@ -113,6 +118,7 @@ def location_origin_from_module_name(
     working_directory: Optional[str],
     location_name: Optional[str] = None,
     executable_path: Optional[str] = None,
+    use_grpc: bool = False
 ) -> InProcessCodeLocationOrigin:
     check.str_param(module_name, "module_name")
     check.opt_str_param(attribute, "attribute")
@@ -128,7 +134,10 @@ def location_origin_from_module_name(
         package_name=None,
     )
 
-    return _create_python_env_location_origin(loadable_target_origin, location_name)
+    return _create_python_env_location_origin(
+        loadable_target_origin, location_name,
+        use_grpc
+    )
 
 
 def _location_origin_from_package_config(
@@ -168,6 +177,7 @@ def location_origin_from_package_name(
     working_directory: Optional[str],
     location_name: Optional[str] = None,
     executable_path: Optional[str] = None,
+    use_grpc: bool = False
 ) -> InProcessCodeLocationOrigin:
     check.str_param(package_name, "package_name")
     check.opt_str_param(attribute, "attribute")
@@ -185,6 +195,7 @@ def location_origin_from_package_name(
     return _create_python_env_location_origin(
         loadable_target_origin,
         location_name,
+        use_grpc
     )
 
 
@@ -237,6 +248,7 @@ def location_origin_from_python_file(
     working_directory: Optional[str],
     location_name: Optional[str] = None,
     executable_path: Optional[str] = None,
+    use_grpc: bool = False
 ) -> InProcessCodeLocationOrigin:
     check.str_param(python_file, "python_file")
     check.opt_str_param(attribute, "attribute")
@@ -254,6 +266,7 @@ def location_origin_from_python_file(
     return _create_python_env_location_origin(
         loadable_target_origin,
         location_name,
+        use_grpc
     )
 
 

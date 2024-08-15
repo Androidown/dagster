@@ -259,16 +259,18 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
 
     def save_repo_definition(
         self,
+        flow_name: str,
         location_name: str,
         name: str,
-        metadata: bytes,
-        utilized_env_vars: bytes,
+        metadata: str,
+        utilized_env_vars: str,
+        main_key: str,
         snap_type: str,
-        definition: bytes,
-        main_key: str = None
+        definition: str,
     ) -> None:
         tbl = RepoDefinitionsTable
         query = insert(tbl).values(
+            flow_name=flow_name,
             metadata=metadata,
             utilized_env_vars=utilized_env_vars,
             location_name=location_name,
@@ -277,7 +279,7 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
             definition=definition,
             main_key=main_key,
         ).on_conflict_do_update(
-            index_elements=['name', 'main_key', 'snap_type', 'location_name'],
+            index_elements=['name', 'main_key', 'snap_type', 'location_name', 'flow_name'],
             set_=dict(
                 metadata=metadata,
                 utilized_env_vars=utilized_env_vars,

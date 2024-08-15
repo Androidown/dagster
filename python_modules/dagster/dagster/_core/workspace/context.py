@@ -215,12 +215,8 @@ class BaseWorkspaceRequestContext(IWorkspace, LoadingContext):
     def shutdown_code_location(self, name: str):
         self.process_context.shutdown_code_location(name)
 
-    def reload_workspace(self) -> "BaseWorkspaceRequestContext":
-        self.process_context.reload_workspace()
-        return self.process_context.create_request_context()
-
-    def refresh_workspace(self) -> "BaseWorkspaceRequestContext":
-        self.process_context.refresh_workspace()
+    def reload_workspace(self, **kwargs) -> "BaseWorkspaceRequestContext":
+        self.process_context.reload_workspace(**kwargs)
         return self.process_context.create_request_context()
 
     def has_external_job(self, selector: JobSubsetSelector) -> bool:
@@ -446,7 +442,7 @@ class IWorkspaceProcessContext(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def reload_workspace(self) -> None:
+    def reload_workspace(self, **kwargs) -> None:
         """Reload the code in each code location."""
         pass
 
@@ -515,6 +511,8 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
             self._grpc_server_registry: GrpcServerRegistry = check.inst_param(
                 grpc_server_registry, "grpc_server_registry", GrpcServerRegistry
             )
+        else:
+            self._grpc_server_registry = None
 
         self._location_entry_dict: Dict[str, CodeLocationEntry] = {}
         self._update_workspace(
@@ -530,7 +528,9 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
 
     @property
     def _origins(self) -> Sequence[CodeLocationOrigin]:
-        return self._workspace_load_target.create_origins() if self._workspace_load_target else []
+        return self._workspace_load_target.create_origins(
+            use_grpc=self._grpc_server_registry is not None
+        ) if self._workspace_load_target else []
 
     def add_state_subscriber(self, subscriber: LocationStateSubscriber) -> int:
         token = next(self._state_subscriber_id_iter)
@@ -600,7 +600,7 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
         self._watch_threads[location_name] = watch_thread
         watch_thread.start()
 
-    def _load_location(self, origin: CodeLocationOrigin, reload: bool) -> CodeLocationEntry:
+    def _load_location(self, origin: CodeLocationOrigin, reload: bool, **kwargs) -> CodeLocationEntry:
         location_name = origin.location_name
         location = None
         error = None
@@ -624,7 +624,7 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
                 )
             else:
                 location = (
-                    origin.reload_location(self.instance)
+                    origin.reload_location(self.instance, **kwargs)
                     if reload
                     else origin.create_location(self.instance)
                 )
@@ -693,9 +693,9 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
         }
         self._update_workspace(updated_locations)
 
-    def reload_workspace(self) -> None:
+    def reload_workspace(self, **kwargs) -> None:
         updated_locations = {
-            origin.location_name: self._load_location(origin, reload=True)
+            origin.location_name: self._load_location(origin, reload=True, **kwargs)
             for origin in self._origins
         }
         self._update_workspace(updated_locations)
