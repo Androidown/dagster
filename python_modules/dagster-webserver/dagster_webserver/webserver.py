@@ -499,7 +499,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
         storage = context.instance.run_storage
         flow_name = body['name']
         if flow := storage.get_definition(flow_name):
-            package_name = pathlib.Path(context.instance.root_directory).name
+            package_name = code_folder.name
             try:
                 loaded = load_repositories_from_definitions([flow], package_name)
             except Exception as e:
@@ -508,7 +508,7 @@ class DagsterWebserver(GraphQLServer, Generic[T_IWorkspaceProcessContext]):
                     status_code=200,
                     headers=HEADER
                 )
-            dump_codes([flow], code_folder, code_folder.name)
+            dump_codes([flow], code_folder, package_name)
             context.reload_workspace(flow=flow, loaded_repo=loaded)
         return JSONResponse({'status': 'ok'}, headers=HEADER)
 

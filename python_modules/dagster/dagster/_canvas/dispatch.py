@@ -1,13 +1,12 @@
 import ast
 import dataclasses
-import warnings
 from typing import Callable
 
 from .analyzer import DependencyCollector
 from .codegen import *
 from .context import ContextLevel, NodeRef, Branch
 from .steps import Step, CodeStep, MapStep, IfElseStep
-from .. import DagsterInvalidDefinitionError
+from dagster import DagsterInvalidDefinitionError
 
 
 @functools.singledispatch

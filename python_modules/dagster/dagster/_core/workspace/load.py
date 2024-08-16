@@ -105,7 +105,7 @@ def _create_python_env_location_origin(
     loadable_target_origin: LoadableTargetOrigin,
     location_name: Optional[str],
     use_grpc: bool = False
-) -> InProcessCodeLocationOrigin:
+) -> Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]:
     # To differ caller from daemon or web-server
     if use_grpc:
         return ManagedGrpcPythonEnvCodeLocationOrigin(loadable_target_origin, location_name)
@@ -119,7 +119,7 @@ def location_origin_from_module_name(
     location_name: Optional[str] = None,
     executable_path: Optional[str] = None,
     use_grpc: bool = False
-) -> InProcessCodeLocationOrigin:
+) -> Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]:
     check.str_param(module_name, "module_name")
     check.opt_str_param(attribute, "attribute")
     check.opt_str_param(working_directory, "working_directory")
@@ -142,7 +142,7 @@ def location_origin_from_module_name(
 
 def _location_origin_from_package_config(
     python_package_config: Union[str, Mapping[str, str]],
-) -> InProcessCodeLocationOrigin:
+) -> Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]:
     (
         module_name,
         attribute,
@@ -178,7 +178,7 @@ def location_origin_from_package_name(
     location_name: Optional[str] = None,
     executable_path: Optional[str] = None,
     use_grpc: bool = False
-) -> InProcessCodeLocationOrigin:
+) -> Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]:
     check.str_param(package_name, "package_name")
     check.opt_str_param(attribute, "attribute")
     check.opt_str_param(working_directory, "working_directory")
@@ -249,7 +249,7 @@ def location_origin_from_python_file(
     location_name: Optional[str] = None,
     executable_path: Optional[str] = None,
     use_grpc: bool = False
-) -> InProcessCodeLocationOrigin:
+) -> Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]:
     check.str_param(python_file, "python_file")
     check.opt_str_param(attribute, "attribute")
     check.opt_str_param(working_directory, "working_directory")

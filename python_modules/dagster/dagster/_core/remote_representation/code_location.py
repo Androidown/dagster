@@ -343,7 +343,6 @@ def clean_package(pkg):
 def load_repositories_from_definitions(flows: List[Dict], package_name: str):
     clean_package(package_name)
     with tempfile.TemporaryDirectory() as tmpdir:
-        os.makedirs(pathlib.Path(tmpdir) / package_name, exist_ok=True)
         dump_codes(flows, tmpdir, package_name)
         tmp_origin = LoadableTargetOrigin(
             working_directory=tmpdir,
@@ -405,7 +404,7 @@ def save_repo_data(
     for repo_name, repo_def in loaded_repo.definitions_by_name.items():
         repo_data = external_repository_data_from_def(repo_def)
         main_keys = {
-            "name": serialize_value(repo_data.name),
+            "name": repo_data.name,
             "location_name": origin.location_name,
             "metadata": serialize_value(repo_data.metadata),
             "utilized_env_vars": serialize_value(repo_data.utilized_env_vars)
@@ -429,11 +428,11 @@ def get_repo_data(name, instance):
     storage = instance.run_storage
     repos = {}
     global_job_data = {}
-    main_fields = {'metadata', 'utilized_env_vars', 'name'}
+    main_fields = {'metadata', 'utilized_env_vars'}
     for snap_row in storage.get_repo_definition(name):
-        repo_name = deserialize_value(snap_row['name'])
-        repos.setdefault(repo_name, {})
-        cur = repos[repo_name]
+        repo_name = snap_row['name']
+        cur = repos.setdefault(repo_name, {})
+        cur.setdefault('name', repo_name)
         for main_field in main_fields:
             cur.setdefault(main_field, deserialize_value(snap_row[main_field]))
         attr_name = snap_row['snap_type']

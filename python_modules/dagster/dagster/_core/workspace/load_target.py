@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, Sequence
+from typing import NamedTuple, Optional, Sequence, Union
 
 import tomli
 
@@ -76,7 +76,7 @@ class PythonFileTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self, **kwargs) -> Sequence[InProcessCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]]:
         return [
             location_origin_from_python_file(
                 python_file=self.python_file,
@@ -100,7 +100,7 @@ class ModuleTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self, **kwargs) -> Sequence[InProcessCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]]:
         return [
             location_origin_from_module_name(
                 self.module_name,
@@ -124,7 +124,7 @@ class PackageTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self, **kwargs) -> Sequence[InProcessCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]]:
         return [
             location_origin_from_package_name(
                 self.package_name,

@@ -47,10 +47,7 @@ from dagster._core.definitions import (
 )
 from dagster._core.definitions.asset_check_spec import AssetCheckKey
 from dagster._core.definitions.asset_graph import AssetGraph
-from dagster._core.definitions.asset_job import (
-    is_base_asset_job_name,
-    ASSET_BASE_JOB_PREFIX
-)
+from dagster._core.definitions.asset_job import is_base_asset_job_name
 from dagster._core.definitions.asset_sensor_definition import AssetSensorDefinition
 from dagster._core.definitions.asset_spec import AssetExecutionType
 from dagster._core.definitions.auto_materialize_policy import AutoMaterializePolicy
