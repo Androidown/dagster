@@ -353,7 +353,7 @@ class RunStorage(ABC, MayHaveInstanceWeakref[T_DagsterInstance], DaemonCursorSto
         """Called on a regular interval by the daemon."""
 
     @abstractmethod
-    def get_daemon_heartbeats(self) -> Mapping[str, DaemonHeartbeat]:
+    def get_daemon_heartbeats(self) -> Mapping[str, List[DaemonHeartbeat]]:
         """Latest heartbeats of all daemon types."""
 
     def add_run_telemetry(

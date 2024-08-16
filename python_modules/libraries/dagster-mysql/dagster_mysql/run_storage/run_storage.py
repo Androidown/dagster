@@ -168,7 +168,6 @@ class MySQLRunStorage(SqlRunStorage, ConfigurableClass):
                 )
                 .on_duplicate_key_update(
                     timestamp=datetime_from_timestamp(daemon_heartbeat.timestamp),
-                    daemon_id=daemon_heartbeat.daemon_id,
                     body=serialize_value(daemon_heartbeat),
                 )
             )

@@ -823,20 +823,27 @@ class SqlRunStorage(RunStorage):
             except db_exc.IntegrityError:
                 conn.execute(
                     DaemonHeartbeatsTable.update()
-                    .where(DaemonHeartbeatsTable.c.daemon_type == daemon_heartbeat.daemon_type)
+                    .where(
+                        db.and_(
+                            DaemonHeartbeatsTable.c.daemon_type == daemon_heartbeat.daemon_type,
+                            DaemonHeartbeatsTable.c.daemon_id == daemon_heartbeat.daemon_id,
+                        )
+                    )
                     .values(
                         timestamp=datetime_from_timestamp(daemon_heartbeat.timestamp),
-                        daemon_id=daemon_heartbeat.daemon_id,
                         body=serialize_value(daemon_heartbeat),
                     )
                 )
 
-    def get_daemon_heartbeats(self) -> Mapping[str, DaemonHeartbeat]:
+    def get_daemon_heartbeats(self) -> Mapping[str, List[DaemonHeartbeat]]:
         rows = self.fetchall(db_select([DaemonHeartbeatsTable.c.body]))
         heartbeats = []
         for row in rows:
             heartbeats.append(deserialize_value(row["body"], DaemonHeartbeat))
-        return {heartbeat.daemon_type: heartbeat for heartbeat in heartbeats}
+        result = {}
+        for heartbeat in heartbeats:
+            result.setdefault(heartbeat.daemon_type, []).append(heartbeat)
+        return result
 
     def wipe(self) -> None:
         """Clears the run storage."""

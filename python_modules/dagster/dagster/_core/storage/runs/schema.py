@@ -93,14 +93,8 @@ SnapshotsTable = db.Table(
 DaemonHeartbeatsTable = db.Table(
     "daemon_heartbeats",
     RunStorageSqlMetadata,
-    db.Column(
-        "id",
-        db.BigInteger().with_variant(sqlite.INTEGER(), "sqlite"),
-        primary_key=True,
-        autoincrement=True,
-    ),
-    db.Column("daemon_type", db.String(255), unique=True, nullable=False),
-    db.Column("daemon_id", db.String(255)),
+    db.Column("daemon_type", db.String(255), nullable=False, primary_key=True),
+    db.Column("daemon_id", db.String(255), primary_key=True),
     db.Column("timestamp", db.types.TIMESTAMP, nullable=False),
     db.Column("body", db.Text),  # serialized DaemonHeartbeat
 )

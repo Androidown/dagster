@@ -74,7 +74,7 @@ from dagster._utils import PrintFn, is_uuid, traced
 from dagster._utils.error import serializable_error_info_from_exc_info
 from dagster._utils.merger import merge_dicts
 from dagster._utils.warnings import deprecation_warning, experimental_warning
-
+from dagster._serdes import deserialize_value, serialize_value
 from .config import (
     DAGSTER_CONFIG_YAML_FILENAME,
     DEFAULT_LOCAL_CODE_SERVER_STARTUP_TIMEOUT,
@@ -82,6 +82,9 @@ from .config import (
     get_tick_retention_settings,
 )
 from .ref import InstanceRef
+from dagster._core.redis import Redis
+
+RUN_QUEUE = 'dagster'
 
 # 'airflow_execution_date' and 'is_airflow_ingest_pipeline' are hardcoded tags used in the
 # airflow ingestion logic (see: dagster_pipeline_factory.py). 'airflow_execution_date' stores the
@@ -396,6 +399,7 @@ class DagsterInstance(DynamicPartitionsStore):
         run_coordinator: Optional["RunCoordinator"],
         compute_log_manager: Optional["ComputeLogManager"],
         run_launcher: Optional["RunLauncher"],
+        redis: Redis,
         scheduler: Optional["Scheduler"] = None,
         schedule_storage: Optional["ScheduleStorage"] = None,
         settings: Optional[Mapping[str, Any]] = None,
@@ -497,6 +501,7 @@ class DagsterInstance(DynamicPartitionsStore):
 
         # Used for batched event handling
         self._event_buffer: Dict[str, List[EventLogEntry]] = defaultdict(list)
+        self._redis = redis
 
     # ctors
 
@@ -654,6 +659,7 @@ class DagsterInstance(DynamicPartitionsStore):
             settings=instance_ref.settings,
             secrets_loader=instance_ref.secrets_loader,
             ref=instance_ref,
+            redis=instance_ref.redis,
             **kwargs,
         )
 
@@ -1605,7 +1611,7 @@ class DagsterInstance(DynamicPartitionsStore):
             external_job_origin=external_job_origin,
             job_code_origin=job_code_origin,
         )
-
+        self.put_runs_into_queue([dagster_run])
         dagster_run = self._run_storage.add_run(dagster_run)
 
         if execution_plan_snapshot:
@@ -1803,6 +1809,21 @@ class DagsterInstance(DynamicPartitionsStore):
         ascending: bool = False,
     ) -> Sequence[DagsterRun]:
         return self._run_storage.get_runs(filters, cursor, limit, bucket_by, ascending)
+
+    @traced
+    def get_queued_runs(self, limit: int) -> Sequence[DagsterRun]:
+        runs = []
+        for _ in range(limit):
+            run = self._redis.brpop(RUN_QUEUE, 1)
+            if not run:
+                return runs
+            runs.append(deserialize_value(run[1].decode()))
+        return runs
+
+    @traced
+    def put_runs_into_queue(self, runs: Sequence[DagsterRun]):
+        for run in runs:
+            self._redis.lpush(RUN_QUEUE, serialize_value(run))
 
     @traced
     def get_run_ids(
@@ -3004,7 +3025,7 @@ class DagsterInstance(DynamicPartitionsStore):
         """Called on a regular interval by the daemon."""
         self._run_storage.add_daemon_heartbeat(daemon_heartbeat)
 
-    def get_daemon_heartbeats(self) -> Mapping[str, "DaemonHeartbeat"]:
+    def get_daemon_heartbeats(self) -> Mapping[str, List["DaemonHeartbeat"]]:
         """Latest heartbeats of all daemon types."""
         return self._run_storage.get_daemon_heartbeats()
 

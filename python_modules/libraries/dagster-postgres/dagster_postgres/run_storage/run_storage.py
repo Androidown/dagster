@@ -192,10 +192,9 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
                     body=serialize_value(daemon_heartbeat),
                 )
                 .on_conflict_do_update(
-                    index_elements=[DaemonHeartbeatsTable.c.daemon_type],
+                    index_elements=[DaemonHeartbeatsTable.c.daemon_type, DaemonHeartbeatsTable.c.daemon_id],
                     set_={
                         "timestamp": datetime_from_timestamp(daemon_heartbeat.timestamp),
-                        "daemon_id": daemon_heartbeat.daemon_id,
                         "body": serialize_value(daemon_heartbeat),
                     },
                 )
@@ -203,6 +202,7 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
                     # required because sqlalchemy might by default return the declared primary key,
                     # which might not exist
                     DaemonHeartbeatsTable.c.daemon_type,
+                    DaemonHeartbeatsTable.c.daemon_id,
                 )
             )
 
