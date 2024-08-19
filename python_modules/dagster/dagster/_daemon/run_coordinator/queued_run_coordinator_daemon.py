@@ -305,9 +305,10 @@ class QueuedRunCoordinatorDaemon(IntervalDaemon):
             instance.put_runs_into_queue(to_remove)
 
             if max_runs_to_launch >= 1:
-                instance.put_runs_into_queue(batch[max_runs_to_launch:])
+                # put back into queue those won't run in this turn
+                # should run immediately in next turn
+                instance.put_runs_into_queue(batch[max_runs_to_launch:], end=True)
                 batch = batch[:max_runs_to_launch]
-
         return batch
 
     def _get_in_progress_run_records(self, instance: DagsterInstance) -> Sequence[RunRecord]:

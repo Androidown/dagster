@@ -52,6 +52,9 @@ class Redis(abc.ABC):
     def lpush(self, name: str, *values: _Value) -> int:
         return self.client.lpush(name, *values)
 
+    def rpush(self, name: str, *values: _Value) -> int:
+        return self.client.rpush(name, *values)
+
     def close(self, close_connection_pool: Optional[bool] = None):
         self.client.close(close_connection_pool)
 
