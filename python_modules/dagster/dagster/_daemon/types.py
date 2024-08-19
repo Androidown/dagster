@@ -56,7 +56,7 @@ class DaemonStatus(
         [
             ("daemon_type", str),
             ("required", bool),
-            ("healthy", Optional[bool]),
+            ("healthy", Optional[int]),
             ("last_heartbeat", Optional[DaemonHeartbeat]),
         ],
     )
@@ -69,13 +69,13 @@ class DaemonStatus(
         cls,
         daemon_type: str,
         required: bool,
-        healthy: Optional[bool],
+        healthy: Optional[int],
         last_heartbeat: Optional[DaemonHeartbeat],
     ):
         return super(DaemonStatus, cls).__new__(
             cls,
             daemon_type=check.str_param(daemon_type, "daemon_type"),
             required=check.bool_param(required, "required"),
-            healthy=check.opt_bool_param(healthy, "healthy"),
+            healthy=check.opt_int_param(healthy, "healthy"),
             last_heartbeat=check.opt_inst_param(last_heartbeat, "last_heartbeat", DaemonHeartbeat),
         )

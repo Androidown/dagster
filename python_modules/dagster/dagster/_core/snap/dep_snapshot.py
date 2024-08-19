@@ -68,6 +68,14 @@ class DependencyStructureSnapshot(
             ),
         )
 
+    def merge(self, other):
+        return self._replace(
+            node_invocation_snaps=[
+                *self.node_invocation_snaps,
+                *other.node_invocation_snaps
+            ]
+        )
+
 
 # Not actually serialized. Used within the dependency index
 class InputHandle(

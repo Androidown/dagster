@@ -210,7 +210,6 @@ class QueuedRunCoordinatorDaemon(IntervalDaemon):
                 )
                 return []
 
-        cursor = None
         has_more = True
         batch: List[DagsterRun] = []
 
@@ -235,16 +234,10 @@ class QueuedRunCoordinatorDaemon(IntervalDaemon):
         # in memory at once. The maximum number of runs we'll hold in memory is
         # max_runs_to_launch + page_size.
         while has_more:
-            queued_runs = instance.get_runs(
-                RunsFilter(statuses=[DagsterRunStatus.QUEUED]),
-                cursor=cursor,
-                limit=self._page_size,
-                ascending=True,
-            )
+            queued_runs = instance.get_queued_runs(limit=self._page_size)
             has_more = len(queued_runs) >= self._page_size
 
             if not queued_runs:
-                has_more = False
                 return batch
 
             if not logged_this_iteration:
@@ -253,8 +246,6 @@ class QueuedRunCoordinatorDaemon(IntervalDaemon):
                     "Priority sorting and checking tag concurrency limits for queued runs."
                     + locations_clause
                 )
-
-            cursor = queued_runs[-1].run_id
 
             tag_concurrency_limits_counter = TagConcurrencyLimitsCounter(
                 tag_concurrency_limits, in_progress_runs
@@ -311,9 +302,13 @@ class QueuedRunCoordinatorDaemon(IntervalDaemon):
             for run in to_remove:
                 batch.remove(run)
 
-            if max_runs_to_launch >= 1:
-                batch = batch[:max_runs_to_launch]
+            instance.put_runs_into_queue(to_remove)
 
+            if max_runs_to_launch >= 1:
+                # put back into queue those won't run in this turn
+                # should run immediately in next turn
+                instance.put_runs_into_queue(batch[max_runs_to_launch:], end=True)
+                batch = batch[:max_runs_to_launch]
         return batch
 
     def _get_in_progress_run_records(self, instance: DagsterInstance) -> Sequence[RunRecord]:
@@ -349,14 +344,6 @@ class QueuedRunCoordinatorDaemon(IntervalDaemon):
         run = check.not_none(instance.get_run_by_id(run.run_id))
 
         now = fixed_iteration_time or time.time()
-
-        if run.status != DagsterRunStatus.QUEUED:
-            self._logger.info(
-                "Run %s is now %s instead of QUEUED, skipping",
-                run.run_id,
-                run.status,
-            )
-            return False
 
         # Very old (pre 0.10.0) runs and programatically submitted runs may not have an
         # attached code location name

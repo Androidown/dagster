@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 import zlib
@@ -94,7 +95,10 @@ from .schema import (
     SecondaryIndexMigrationTable,
     SnapshotsTable,
     FlowDefinitionsTable,
+    RepoDefinitionsTable,
+    CodePointerTable,
 )
+from dagster._core.code_pointer import ModuleCodePointer
 
 
 class SnapshotType(Enum):
@@ -819,20 +823,27 @@ class SqlRunStorage(RunStorage):
             except db_exc.IntegrityError:
                 conn.execute(
                     DaemonHeartbeatsTable.update()
-                    .where(DaemonHeartbeatsTable.c.daemon_type == daemon_heartbeat.daemon_type)
+                    .where(
+                        db.and_(
+                            DaemonHeartbeatsTable.c.daemon_type == daemon_heartbeat.daemon_type,
+                            DaemonHeartbeatsTable.c.daemon_id == daemon_heartbeat.daemon_id,
+                        )
+                    )
                     .values(
                         timestamp=datetime_from_timestamp(daemon_heartbeat.timestamp),
-                        daemon_id=daemon_heartbeat.daemon_id,
                         body=serialize_value(daemon_heartbeat),
                     )
                 )
 
-    def get_daemon_heartbeats(self) -> Mapping[str, DaemonHeartbeat]:
+    def get_daemon_heartbeats(self) -> Mapping[str, List[DaemonHeartbeat]]:
         rows = self.fetchall(db_select([DaemonHeartbeatsTable.c.body]))
         heartbeats = []
         for row in rows:
             heartbeats.append(deserialize_value(row["body"], DaemonHeartbeat))
-        return {heartbeat.daemon_type: heartbeat for heartbeat in heartbeats}
+        result = {}
+        for heartbeat in heartbeats:
+            result.setdefault(heartbeat.daemon_type, []).append(heartbeat)
+        return result
 
     def wipe(self) -> None:
         """Clears the run storage."""
@@ -968,7 +979,7 @@ class SqlRunStorage(RunStorage):
                     version=version, definition=definition
                 )
 
-    def get_definition(self, name: str, version: int = 0) -> Optional[Tuple[int, str]]:
+    def get_definition(self, name: str, version: int = 0) -> Optional[Dict[str, str]]:
         tbl = FlowDefinitionsTable
         col = tbl.c
         query = db_select(
@@ -978,7 +989,7 @@ class SqlRunStorage(RunStorage):
         if row is None:
             return
 
-        return row['version'], row['definition']
+        return {'name': name, 'definition': row['definition']}
 
     def all_definitions(self, version: int = 0) -> List[Dict[str, str]]:
         tbl = FlowDefinitionsTable
@@ -1002,6 +1013,99 @@ class SqlRunStorage(RunStorage):
             delete = tbl.delete().where(db.and_(col.name == name, col.version == version))
         with self.connect() as conn:
             conn.execute(delete)
+
+    def save_repo_definition(
+        self,
+        flow_name: str,
+        location_name: str,
+        name: str,
+        metadata: str,
+        utilized_env_vars: str,
+        main_key: str,
+        snap_type: str,
+        definition: str,
+    ) -> None:
+        tbl = RepoDefinitionsTable
+        insert = tbl.insert().values(
+            flow_name=flow_name,
+            metadata=metadata,
+            utilized_env_vars=utilized_env_vars,
+            location_name=location_name,
+            name=name,
+            snap_type=snap_type,
+            definition=definition,
+            main_key=main_key,
+        )
+        with self.connect() as conn:
+            try:
+                conn.execute(insert)
+            except db_exc.IntegrityError:
+                # on_conflict_do_update equivalent
+                tbl.update().where(
+                    db.and_(
+                        tbl.c.flow_name == flow_name,
+                        tbl.c.location_name == location_name,
+                        tbl.c.name == name,
+                        tbl.c.main_key == main_key,
+                        tbl.c.snap_type == snap_type,
+                    )
+                ).values(
+                    metadata=metadata,
+                    utilized_env_vars=utilized_env_vars,
+                    definition=definition,
+                )
+
+    def drop_repo_definition_by_flow(self, flow_name: str) -> None:
+        tbl = RepoDefinitionsTable
+        col = tbl.c
+        delete = tbl.delete().where(col.flow_name == flow_name)
+        with self.connect() as conn:
+            conn.execute(delete)
+
+    def get_repo_definition(self, name) -> List[Dict[str, str]]:
+        tbl = RepoDefinitionsTable
+        query = db_select('*').select_from(tbl).where(tbl.c.location_name == name)
+        rows = self.fetchall(query)
+        return [
+            dict(
+                metadata=data['metadata'],
+                utilized_env_vars=data['utilized_env_vars'],
+                name=data['name'],
+                snap_type=data['snap_type'],
+                definition=data['definition'],
+                main_key=data['main_key'],
+                flow_name=data['flow_name'],
+            )
+            for data in rows
+        ]
+
+    def save_code_pointer(
+        self,
+        repo_name: str,
+        code_pointer: str
+    ) -> None:
+        tbl = CodePointerTable
+        insert = tbl.insert().values(
+            repo_name=repo_name,
+            code_pointer=code_pointer
+        )
+        with self.connect() as conn:
+            try:
+                conn.execute(insert)
+            except db_exc.IntegrityError:
+                # on_conflict_do_update equivalent
+                tbl.update().where(
+                    tbl.c.repo_name == repo_name
+                ).values(code_pointer=code_pointer)
+
+    def get_code_pointers(self) -> Dict[str, ModuleCodePointer]:
+        tbl = CodePointerTable
+        query = db_select('*').select_from(tbl)
+        rows = self.fetchall(query)
+        return {
+            row['repo_name']: ModuleCodePointer(**json.loads(row['code_pointer']))
+            for row in rows
+        }
 
 
 GET_PIPELINE_SNAPSHOT_QUERY_ID = "get-pipeline-snapshot"

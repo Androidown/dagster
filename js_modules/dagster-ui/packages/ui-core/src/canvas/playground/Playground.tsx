@@ -19,6 +19,7 @@ import {WorkflowDefinition} from './model';
 import IconPython from './python.svg';
 import IconIf from './if.svg';
 import IconMap from './map.svg';
+import {showCustomAlert} from "../../app/CustomAlertProvider";
 
 const DummyFlow: WorkflowDefinition = {
   properties: {name: 'DUMMY'},
@@ -202,6 +203,28 @@ export function Playground() {
     setCurrentFlow(index);
   }
 
+  async function publishFlow(index: number) {
+    const publishFlowPath = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/publish-flow`;
+    const resp = await fetch(publishFlowPath, {
+      method: 'POST',
+      headers: new Headers({'content-type': 'application/json'}),
+      body: JSON.stringify({
+        name: flowDefinitions[index]!.properties.name,
+      }),
+      mode: 'cors',
+      credentials: 'same-origin',
+    })
+    const data = await resp.json();
+    if (data.error) {
+      showCustomAlert({
+        title: 'Publish Failed',
+        body: 'Detail: ' + data.error,
+      });
+    } else {
+      showCustomAlert({title: 'Publish success'});
+    }
+  }
+
   return (
     <>
       <SequentialWorkflowDesigner
@@ -223,6 +246,7 @@ export function Playground() {
             newFlow={newFlow}
             deleteFlow={deleteFlow}
             saveFlow={saveFlow}
+            publishFlow={publishFlow}
             WorkFlows={flowDefinitions}
             setCurrentFlow={setCurrentFlow}
           />

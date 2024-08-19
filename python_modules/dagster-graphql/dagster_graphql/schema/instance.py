@@ -41,7 +41,7 @@ class GrapheneDaemonStatus(graphene.ObjectType):
     daemonType = graphene.NonNull(graphene.String)
     id = graphene.NonNull(graphene.ID)
     required = graphene.NonNull(graphene.Boolean)
-    healthy = graphene.Boolean()
+    healthy = graphene.Int()
     lastHeartbeatTime = graphene.Float()
     lastHeartbeatErrors = non_null_list(GraphenePythonError)
 

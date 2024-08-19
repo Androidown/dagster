@@ -7,6 +7,7 @@ import dagster._check as check
 from dagster._serdes import ConfigurableClassData, class_from_code_pointer, whitelist_for_serdes
 
 from .config import DAGSTER_CONFIG_YAML_FILENAME, dagster_instance_config
+from dagster._core.redis import Redis
 
 if TYPE_CHECKING:
     from dagster._core.instance import DagsterInstance, DagsterInstanceOverrides
@@ -194,6 +195,7 @@ class InstanceRef(
             ("run_coordinator_data", Optional[ConfigurableClassData]),
             ("run_launcher_data", Optional[ConfigurableClassData]),
             ("settings", Mapping[str, object]),
+            ("redis_url", str),
             # Required for backwards compatibility, but going forward will be unused by new versions
             # of DagsterInstance, which instead will instead grab the constituent storages from the
             # unified `storage_data`, if it is populated.
@@ -220,6 +222,7 @@ class InstanceRef(
         run_coordinator_data: Optional[ConfigurableClassData],
         run_launcher_data: Optional[ConfigurableClassData],
         settings: Mapping[str, object],
+        redis_url: str,
         run_storage_data: Optional[ConfigurableClassData],
         event_storage_data: Optional[ConfigurableClassData],
         schedule_storage_data: Optional[ConfigurableClassData],
@@ -248,6 +251,7 @@ class InstanceRef(
             run_storage_data=check.opt_inst_param(
                 run_storage_data, "run_storage_data", ConfigurableClassData
             ),
+            redis_url=check.str_param(redis_url, "redis_url"),
             event_storage_data=check.opt_inst_param(
                 event_storage_data, "event_storage_data", ConfigurableClassData
             ),
@@ -473,6 +477,7 @@ class InstanceRef(
             custom_instance_class_data=custom_instance_class_data,
             storage_data=storage_data,
             secrets_loader_data=secrets_loader_data,
+            redis_url=config_value['redis']['url']
         )
 
     @staticmethod
@@ -587,6 +592,10 @@ class InstanceRef(
         return (
             self.custom_instance_class_data.config_dict if self.custom_instance_class_data else {}
         )
+
+    @property
+    def redis(self) -> Redis:
+        return Redis.from_url(self.redis_url)
 
     def to_dict(self) -> Mapping[str, Any]:
         return self._asdict()

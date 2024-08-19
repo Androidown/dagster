@@ -41,6 +41,7 @@ interface Props {
   deleteFlow: (index: number) => Promise<void>;
   newFlow: (name: string) => void;
   saveFlow: (index: number) => Promise<void>;
+  publishFlow: (index: number) => Promise<void>;
   activeFlow: number;
 }
 
@@ -49,6 +50,7 @@ export function RootEditor({
   setCurrentFlow,
   deleteFlow,
   saveFlow,
+  publishFlow,
   newFlow,
   activeFlow,
 }: Props) {
@@ -102,6 +104,7 @@ export function RootEditor({
                       <ActionButton text="Open" onClick={() => setCurrentFlow(idx)} />
                       <LoadingButton text="Save" onClick={() => saveFlow(idx)} />
                       <LoadingButton text="Delete" onClick={() => deleteFlow(idx)} />
+                      <LoadingButton text="Publish" onClick={() => publishFlow(idx)} />
                     </Box>
                   </td>
                 </Row>

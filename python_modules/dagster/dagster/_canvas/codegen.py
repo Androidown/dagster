@@ -364,5 +364,5 @@ class CodeBlock:
     def _gen_jobs(self) -> str:
         qualname = "_".join(self._namespace + ['entry'])
         return "\n".join([
-            f'job = define_asset_job({qualname!r}, selection=[{self._graph_fn_name}], executor_def=in_process_executor)',
+            f'job = define_asset_job({qualname!r}, selection=[{self._graph_fn_name}])',
         ])

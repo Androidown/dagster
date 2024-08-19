@@ -93,14 +93,8 @@ SnapshotsTable = db.Table(
 DaemonHeartbeatsTable = db.Table(
     "daemon_heartbeats",
     RunStorageSqlMetadata,
-    db.Column(
-        "id",
-        db.BigInteger().with_variant(sqlite.INTEGER(), "sqlite"),
-        primary_key=True,
-        autoincrement=True,
-    ),
-    db.Column("daemon_type", db.String(255), unique=True, nullable=False),
-    db.Column("daemon_id", db.String(255)),
+    db.Column("daemon_type", db.String(255), nullable=False, primary_key=True),
+    db.Column("daemon_id", db.String(255), primary_key=True),
     db.Column("timestamp", db.types.TIMESTAMP, nullable=False),
     db.Column("body", db.Text),  # serialized DaemonHeartbeat
 )
@@ -156,6 +150,26 @@ FlowDefinitionsTable = db.Table(
         db.Integer().with_variant(sqlite.INTEGER(), "sqlite")
     ),
     db.Column("definition", db.Text)
+)
+
+RepoDefinitionsTable = db.Table(
+    "repo_definitions",
+    RunStorageSqlMetadata,
+    db.Column("metadata", db.Text),
+    db.Column("utilized_env_vars", db.Text),
+    db.Column("location_name", db.Text, primary_key=True),
+    db.Column("flow_name", db.Text, primary_key=True),
+    db.Column("name", db.Text, primary_key=True),
+    db.Column("main_key", db.Text, primary_key=True),
+    db.Column("snap_type", db.Text, primary_key=True),
+    db.Column("definition", db.Text),
+)
+
+CodePointerTable = db.Table(
+    "code_pointer",
+    RunStorageSqlMetadata,
+    db.Column("repo_name", db.Text, primary_key=True),
+    db.Column("code_pointer", db.Text),
 )
 
 db.Index("idx_run_tags", RunTagsTable.c.key, RunTagsTable.c.value, mysql_length=64)

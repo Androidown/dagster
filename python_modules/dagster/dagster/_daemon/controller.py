@@ -444,21 +444,23 @@ def get_daemon_statuses(
                 )
             else:
                 # check if daemon has sent a recent heartbeat
-                latest_heartbeat = heartbeats[daemon_type]
-                hearbeat_timestamp = latest_heartbeat.timestamp
-                maximum_tolerated_time = (
-                    hearbeat_timestamp + heartbeat_interval_seconds + heartbeat_tolerance_seconds
-                )
-                healthy = curr_time_seconds <= maximum_tolerated_time
-
-                if not ignore_errors and latest_heartbeat.errors:
-                    healthy = False
-
+                latest_heartbeats = heartbeats[daemon_type]
+                healthy_count = 0
+                for hb in latest_heartbeats:
+                    hearbeat_timestamp = hb.timestamp
+                    maximum_tolerated_time = (
+                        hearbeat_timestamp + heartbeat_interval_seconds + heartbeat_tolerance_seconds
+                    )
+                    if (
+                        not (not ignore_errors and hb.errors)
+                        and (curr_time_seconds <= maximum_tolerated_time)
+                    ):
+                        healthy_count += 1
                 daemon_statuses_by_type[daemon_type] = DaemonStatus(
                     daemon_type=daemon_type,
                     required=True,
-                    healthy=healthy,
-                    last_heartbeat=heartbeats[daemon_type],
+                    healthy=healthy_count,
+                    last_heartbeat=max(latest_heartbeats, key=lambda x: x.timestamp),
                 )
 
     return daemon_statuses_by_type
@@ -468,5 +470,5 @@ def debug_daemon_heartbeats(instance: DagsterInstance) -> None:
     daemon = SensorDaemon(settings=instance.get_sensor_settings())
     timestamp = get_current_timestamp()
     instance.add_daemon_heartbeat(DaemonHeartbeat(timestamp, daemon.daemon_type(), None, None))
-    returned_timestamp = instance.get_daemon_heartbeats()[daemon.daemon_type()].timestamp
+    returned_timestamp = max(instance.get_daemon_heartbeats()[daemon.daemon_type()], key=lambda x: x.timestamp).timestamp
     print(f"Written timestamp: {timestamp}\nRead timestamp: {returned_timestamp}")  # noqa: T201

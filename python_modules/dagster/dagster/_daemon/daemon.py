@@ -172,23 +172,6 @@ class DagsterDaemon(AbstractContextManager, ABC, Generic[TContext]):
             return
 
         daemon_type = self.daemon_type()
-
-        last_stored_heartbeat = instance.get_daemon_heartbeats().get(daemon_type)
-        if (
-            self._last_heartbeat_time
-            and last_stored_heartbeat
-            and last_stored_heartbeat.daemon_id != daemon_uuid
-        ):
-            self._logger.error(
-                "Another %s daemon is still sending heartbeats. You likely have multiple "
-                "daemon processes running at once, which is not supported. "
-                "Last heartbeat daemon id: %s, "
-                "Current daemon_id: %s",
-                daemon_type,
-                last_stored_heartbeat.daemon_id,
-                daemon_uuid,
-            )
-
         self._last_heartbeat_time = curr_time
 
         instance.add_daemon_heartbeat(

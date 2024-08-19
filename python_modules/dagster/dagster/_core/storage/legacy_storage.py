@@ -1,4 +1,7 @@
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING, Iterable, Mapping, Optional, Sequence,
+    Set, Tuple, Union, List
+)
 
 from dagster import _check as check
 from dagster._config.config_schema import UserConfigSchema
@@ -301,7 +304,7 @@ class LegacyRunStorage(RunStorage, ConfigurableClass):
     def add_daemon_heartbeat(self, daemon_heartbeat: "DaemonHeartbeat") -> None:
         return self._storage.run_storage.add_daemon_heartbeat(daemon_heartbeat)
 
-    def get_daemon_heartbeats(self) -> Mapping[str, "DaemonHeartbeat"]:
+    def get_daemon_heartbeats(self) -> Mapping[str, List["DaemonHeartbeat"]]:
         return self._storage.run_storage.get_daemon_heartbeats()
 
     def wipe_daemon_heartbeats(self) -> None:

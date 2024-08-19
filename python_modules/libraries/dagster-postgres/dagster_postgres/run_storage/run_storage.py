@@ -16,7 +16,9 @@ from dagster._core.storage.runs import (
 from dagster._core.storage.runs.schema import (
     KeyValueStoreTable,
     SnapshotsTable,
-    FlowDefinitionsTable
+    FlowDefinitionsTable,
+    RepoDefinitionsTable,
+    CodePointerTable
 )
 from dagster._core.storage.runs.sql_run_storage import SnapshotType
 from dagster._core.storage.sql import (
@@ -190,10 +192,9 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
                     body=serialize_value(daemon_heartbeat),
                 )
                 .on_conflict_do_update(
-                    index_elements=[DaemonHeartbeatsTable.c.daemon_type],
+                    index_elements=[DaemonHeartbeatsTable.c.daemon_type, DaemonHeartbeatsTable.c.daemon_id],
                     set_={
                         "timestamp": datetime_from_timestamp(daemon_heartbeat.timestamp),
-                        "daemon_id": daemon_heartbeat.daemon_id,
                         "body": serialize_value(daemon_heartbeat),
                     },
                 )
@@ -201,6 +202,7 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
                     # required because sqlalchemy might by default return the declared primary key,
                     # which might not exist
                     DaemonHeartbeatsTable.c.daemon_type,
+                    DaemonHeartbeatsTable.c.daemon_id,
                 )
             )
 
@@ -251,6 +253,54 @@ class PostgresRunStorage(SqlRunStorage, ConfigurableClass):
         ).on_conflict_do_update(
             index_elements=['name'],
             set_=dict(version=version, definition=definition)
+        )
+        with self.connect() as conn:
+            conn.execute(query)
+
+    def save_repo_definition(
+        self,
+        flow_name: str,
+        location_name: str,
+        name: str,
+        metadata: str,
+        utilized_env_vars: str,
+        main_key: str,
+        snap_type: str,
+        definition: str,
+    ) -> None:
+        tbl = RepoDefinitionsTable
+        query = insert(tbl).values(
+            flow_name=flow_name,
+            metadata=metadata,
+            utilized_env_vars=utilized_env_vars,
+            location_name=location_name,
+            name=name,
+            snap_type=snap_type,
+            definition=definition,
+            main_key=main_key,
+        ).on_conflict_do_update(
+            index_elements=['name', 'main_key', 'snap_type', 'location_name', 'flow_name'],
+            set_=dict(
+                metadata=metadata,
+                utilized_env_vars=utilized_env_vars,
+                definition=definition,
+            )
+        )
+        with self.connect() as conn:
+            conn.execute(query)
+
+    def save_code_pointer(
+        self,
+        repo_name: str,
+        code_pointer: str
+    ) -> None:
+        tbl = CodePointerTable
+        query = insert(tbl).values(
+            repo_name=repo_name,
+            code_pointer=code_pointer
+        ).on_conflict_do_update(
+            index_elements=['repo_name'],
+            set_=dict(code_pointer=code_pointer)
         )
         with self.connect() as conn:
             conn.execute(query)

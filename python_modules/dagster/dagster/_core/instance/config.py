@@ -192,6 +192,10 @@ def python_logs_config_schema() -> Field:
     )
 
 
+def redis_config_schema() -> Field:
+    return Field({"url": Field(str, is_required=True)}, is_required=True)
+
+
 DEFAULT_LOCAL_CODE_SERVER_STARTUP_TIMEOUT = 180
 
 
@@ -350,6 +354,7 @@ def dagster_instance_config_schema() -> Mapping[str, Field]:
         ),
         "instance_class": config_field_for_configurable_class(),
         "python_logs": python_logs_config_schema(),
+        "redis": redis_config_schema(),
         "run_monitoring": Field(
             {
                 "enabled": Field(Bool, is_required=False),

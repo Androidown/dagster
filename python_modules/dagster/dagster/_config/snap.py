@@ -51,6 +51,11 @@ class ConfigSchemaSnapshot(
         check.str_param(key, "key")
         return key in self.all_config_snaps_by_key
 
+    def merge(self, other):
+        res = dict(self.all_config_snaps_by_key)
+        res.update(**other.all_config_snaps_by_key)
+        return self._replace(all_config_snaps_by_key=res)
+
 
 def _ct_name(ct):
     return ct.name

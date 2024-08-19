@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, Sequence
+from typing import NamedTuple, Optional, Sequence, Union
 
 import tomli
 
@@ -8,6 +8,7 @@ from dagster._core.remote_representation.origin import (
     CodeLocationOrigin,
     GrpcServerCodeLocationOrigin,
     ManagedGrpcPythonEnvCodeLocationOrigin,
+    InProcessCodeLocationOrigin,
 )
 
 from .load import (
@@ -20,14 +21,14 @@ from .load import (
 
 class WorkspaceLoadTarget(ABC):
     @abstractmethod
-    def create_origins(self) -> Sequence[CodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[CodeLocationOrigin]:
         """Reloads the CodeLocationOrigins for this workspace."""
 
 
 class CompositeTarget(
     NamedTuple("CompositeTarget", [("targets", Sequence[WorkspaceLoadTarget])]), WorkspaceLoadTarget
 ):
-    def create_origins(self):
+    def create_origins(self, **kwargs):
         origins = []
         for target in self.targets:
             origins += target.create_origins()
@@ -37,7 +38,7 @@ class CompositeTarget(
 class WorkspaceFileTarget(
     NamedTuple("WorkspaceFileTarget", [("paths", Sequence[str])]), WorkspaceLoadTarget
 ):
-    def create_origins(self) -> Sequence[CodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[CodeLocationOrigin]:
         return location_origins_from_yaml_paths(self.paths)
 
 
@@ -59,7 +60,7 @@ def get_origins_from_toml(path: str) -> Sequence[ManagedGrpcPythonEnvCodeLocatio
 
 
 class PyProjectFileTarget(NamedTuple("PyProjectFileTarget", [("path", str)]), WorkspaceLoadTarget):
-    def create_origins(self) -> Sequence[CodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[CodeLocationOrigin]:
         return get_origins_from_toml(self.path)
 
 
@@ -75,13 +76,14 @@ class PythonFileTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[ManagedGrpcPythonEnvCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]]:
         return [
             location_origin_from_python_file(
                 python_file=self.python_file,
                 attribute=self.attribute,
                 working_directory=self.working_directory,
                 location_name=self.location_name,
+                **kwargs
             )
         ]
 
@@ -98,13 +100,14 @@ class ModuleTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[ManagedGrpcPythonEnvCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]]:
         return [
             location_origin_from_module_name(
                 self.module_name,
                 self.attribute,
                 self.working_directory,
                 location_name=self.location_name,
+                **kwargs
             )
         ]
 
@@ -121,13 +124,14 @@ class PackageTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[ManagedGrpcPythonEnvCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[Union[InProcessCodeLocationOrigin, ManagedGrpcPythonEnvCodeLocationOrigin]]:
         return [
             location_origin_from_package_name(
                 self.package_name,
                 self.attribute,
                 self.working_directory,
                 location_name=self.location_name,
+                **kwargs
             )
         ]
 
@@ -144,7 +148,7 @@ class GrpcServerTarget(
     ),
     WorkspaceLoadTarget,
 ):
-    def create_origins(self) -> Sequence[GrpcServerCodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[GrpcServerCodeLocationOrigin]:
         return [
             GrpcServerCodeLocationOrigin(
                 port=self.port,
@@ -157,5 +161,5 @@ class GrpcServerTarget(
 
 #  Utility target for graphql commands that do not require a workspace, e.g. downloading schema
 class EmptyWorkspaceTarget(NamedTuple("EmptyWorkspaceTarget", []), WorkspaceLoadTarget):
-    def create_origins(self) -> Sequence[CodeLocationOrigin]:
+    def create_origins(self, **kwargs) -> Sequence[CodeLocationOrigin]:
         return []
